@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">StockIt</string>
+    <string name="splash_screen_title">Welcome to StockIt</string>
+    <string name="onboarding_title">Get Started with StockIt</string>
+    <string name="sign_in_title">Sign In</string>
+    <string name="sign_up_title">Create Account</string>
+    <string name="sign_in_success_message">Welcome back!</string>
+    <string name="home_page_title">Stock Market Overview</string>
+    <string name="portfolio_page_title">Your Portfolio</string>
+    <string name="stock_detail_page_title">Stock Details</string>
+    <string name="profile_page_title">Your Profile</string>
+    <string name="error_message">An error occurred. Please try again.</string>
+    <string name="loading_message">Loading...</string>
+    <string name="sign_out_message">You have been signed out.</string>
+</resources>

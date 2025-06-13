@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Material Design 3 Color Tokens -->
+    <color name="colorPrimary">#6750A4</color>
+    <color name="colorPrimaryVariant">#7F39FB</color>
+    <color name="colorOnPrimary">#FFFFFF</color>
+    
+    <color name="colorSecondary">#625B71</color>
+    <color name="colorSecondaryVariant">#7D5260</color>
+    <color name="colorOnSecondary">#FFFFFF</color>
+    
+    <color name="colorBackground">#FFFBFE</color>
+    <color name="colorOnBackground">#1C1B1F</color>
+    
+    <color name="colorSurface">#FFFBFE</color>
+    <color name="colorOnSurface">#1C1B1F</color>
+    
+    <color name="colorError">#BA1A1A</color>
+    <color name="colorOnError">#FFFFFF</color>
+    
+    <!-- Additional commonly used colors -->
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+</resources>
