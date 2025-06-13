@@ -25,7 +25,9 @@ fun Navigation(navController: NavHostController) {
         }
         composable("onboarding") { 
             OnboardingScreen(
-                onNext = { navController.navigate("sign_in") }
+                onSkip = { navController.navigate("home") },
+                onSignIn = { navController.navigate("sign_in") },
+                onSignUp = { navController.navigate("sign_up") }
             ) 
         }
         composable("sign_in") { 
