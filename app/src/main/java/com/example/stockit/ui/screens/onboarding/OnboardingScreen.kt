@@ -1,8 +1,11 @@
 package com.example.stockit.ui.screens.onboarding
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -224,27 +227,69 @@ fun OnboardingScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // Enhanced page indicator dots
+            // Enhanced page indicator dots with tap functionality and better styling
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.padding(bottom = 40.dp)
             ) {
                 repeat(onboardingSteps.size) { index ->
+                    val isActive = index == currentStep
+                    val animatedWidth by animateIntAsState(
+                        targetValue = if (isActive) 32 else 8,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessMedium
+                        ),
+                        label = "dot_width"
+                    )
+                    
+                    val animatedColor by animateColorAsState(
+                        targetValue = if (isActive) {
+                            Color(0xFF6366F1)
+                        } else {
+                            Color(0xFFCBD5E1)
+                        },
+                        animationSpec = tween(300),
+                        label = "dot_color"
+                    )
+                    
+                    val animatedElevation by animateDpAsState(
+                        targetValue = if (isActive) 6.dp else 2.dp,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy
+                        ),
+                        label = "dot_elevation"
+                    )
+                    
+                    // Alternative with scale feedback:
+                    var isPressed by remember { mutableStateOf(false) }
+                    val scale by animateFloatAsState(
+                        targetValue = if (isPressed) 0.9f else 1f,
+                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+                        label = "press_scale"
+                    )
+
                     Box(
                         modifier = Modifier
-                            .size(if (index == currentStep) 24.dp else 8.dp)
+                            .width(animatedWidth.dp)
+                            .height(8.dp)
+                            .scale(scale)
                             .background(
-                                color = if (index == currentStep) {
-                                    Color(0xFF6366F1)
-                                } else {
-                                    Color(0xFF64748B).copy(alpha = 0.3f)
-                                },
-                                shape = RoundedCornerShape(if (index == currentStep) 12.dp else 4.dp)
+                                color = animatedColor,
+                                shape = RoundedCornerShape(4.dp)
                             )
                             .shadow(
-                                elevation = if (index == currentStep) 4.dp else 0.dp,
-                                shape = RoundedCornerShape(if (index == currentStep) 12.dp else 4.dp)
+                                elevation = animatedElevation,
+                                shape = RoundedCornerShape(4.dp),
+                                ambientColor = Color(0xFF6366F1).copy(alpha = 0.3f)
                             )
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) {
+                                currentStep = index
+                            }
+                            .padding(horizontal = 4.dp, vertical = 2.dp)
                     )
                 }
             }
@@ -254,7 +299,7 @@ fun OnboardingScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 40.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp) // Reduced from 16.dp to 8.dp
             ) {
                 // Enhanced Sign up button
                 Button(
@@ -298,7 +343,7 @@ fun OnboardingScreen(
                     }
                 }
 
-                // Enhanced Sign in button
+                // Enhanced Sign in button with different color scheme
                 Button(
                     onClick = onSignIn,
                     modifier = Modifier
@@ -307,20 +352,37 @@ fun OnboardingScreen(
                         .shadow(
                             elevation = 8.dp,
                             shape = RoundedCornerShape(28.dp),
-                            ambientColor = Color(0xFF6366F1).copy(alpha = 0.2f)
+                            ambientColor = Color(0xFF64748B).copy(alpha = 0.4f),
+                            spotColor = Color(0xFF475569).copy(alpha = 0.4f)
                         ),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.White.copy(alpha = 0.9f)
+                        containerColor = Color.Transparent
                     ),
                     shape = RoundedCornerShape(28.dp)
                 ) {
-                    Text(
-                        text = "Sign in",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.5.sp,
-                        color = Color(0xFF6366F1)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                brush = Brush.linearGradient(
+                                    colors = listOf(
+                                        Color(0xFF64748B),
+                                        Color(0xFF475569),
+                                        Color(0xFF334155)
+                                    )
+                                ),
+                                shape = RoundedCornerShape(28.dp)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Sign in",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            letterSpacing = 0.5.sp
+                        )
+                    }
                 }
             }
         }
