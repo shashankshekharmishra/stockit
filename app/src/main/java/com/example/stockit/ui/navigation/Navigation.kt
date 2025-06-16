@@ -14,6 +14,7 @@ import com.example.stockit.ui.screens.portfolio.PortfolioScreen
 import com.example.stockit.ui.screens.stock.StockDetailScreen
 import com.example.stockit.ui.screens.profile.ProfileScreen
 import com.example.stockit.data.model.Stock
+import com.example.stockit.utils.AuthManager
 
 @Composable
 fun Navigation(navController: NavHostController) {
@@ -32,15 +33,21 @@ fun Navigation(navController: NavHostController) {
         }
         composable("sign_in") { 
             SignInScreen(
-                onSignIn = { navController.navigate("home") }
+                onSignIn = { navController.navigate("sign_in_success") },
+                onNavigateToSignUp = { navController.navigate("sign_up") }
             ) 
         }
         composable("sign_up") { 
             SignUpScreen(
-                onSignUp = { navController.navigate("home") }
+                onSignUp = { navController.navigate("sign_in_success") },
+                onNavigateToSignIn = { navController.navigate("sign_in") }
             ) 
         }
-        composable("sign_in_success") { SignInSuccessScreen() }
+        composable("sign_in_success") { 
+            SignInSuccessScreen(
+                onContinue = { navController.navigate("home") }
+            ) 
+        }
         composable("home") { HomeScreen() }
         composable("portfolio") { PortfolioScreen() }
         composable("stock_detail/{stockId}") { backStackEntry ->
