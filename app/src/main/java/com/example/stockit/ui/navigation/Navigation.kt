@@ -48,7 +48,14 @@ fun Navigation(navController: NavHostController) {
                 onContinue = { navController.navigate("home") }
             ) 
         }
-        composable("home") { HomeScreen() }
+        composable("home") { 
+            HomeScreen(
+                onSearchClick = { /* TODO: Navigate to search */ },
+                onStockClick = { stockSymbol -> 
+                    navController.navigate("stock_detail/$stockSymbol")
+                }
+            ) 
+        }
         composable("portfolio") { PortfolioScreen() }
         composable("stock_detail/{stockId}") { backStackEntry ->
             val stockId = backStackEntry.arguments?.getString("stockId")

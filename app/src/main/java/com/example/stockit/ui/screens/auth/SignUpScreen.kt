@@ -36,13 +36,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.stockit.ui.theme.StockItTheme
 import com.example.stockit.utils.AuthManager
+import com.example.stockit.network.ApiConfig
+import com.example.stockit.network.SignUpRequest
 import kotlinx.coroutines.launch
-import java.io.IOException
-import java.net.HttpURLConnection
-import java.net.URL
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import org.json.JSONObject
+import retrofit2.HttpException
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -480,7 +477,7 @@ fun SignUpScreen(
     }
 }
 
-// Updated signUpUser function with proper data storage
+// Updated signUpUser function using ApiConfig
 suspend fun signUpUser(
     fullName: String,
     email: String,
@@ -494,97 +491,37 @@ suspend fun signUpUser(
     onLoading(true)
     
     try {
-        withContext(Dispatchers.IO) {
-            val url = URL("https://tn-defence-surplus-least.trycloudflare.com/api/auth/signup-simple")
-            val connection = url.openConnection() as HttpURLConnection
+        val request = SignUpRequest(fullName, email, password, confirmPassword)
+        val response = ApiConfig.authApiService.signUp(request)
+        
+        if (response.success) {
+            val accessToken = response.access_token ?: ""
+            val refreshToken = response.refresh_token ?: ""
+            val userId = response.user_id ?: ""
+            val userEmail = response.user_email ?: ""
+            val userFullName = response.user_fullName ?: ""
             
-            connection.requestMethod = "POST"
-            connection.setRequestProperty("Content-Type", "application/json")
-            connection.doOutput = true
+            // Store tokens and user info in SharedPreferences
+            val authManager = AuthManager(context)
+            authManager.saveUserData(accessToken, refreshToken, userId, userEmail, userFullName)
             
-            // Create JSON payload
-            val jsonPayload = JSONObject().apply {
-                put("fullName", fullName)
-                put("email", email)
-                put("password", password)
-                put("confirmPassword", confirmPassword)
-            }
-            
-            // Send request
-            connection.outputStream.use { os ->
-                os.write(jsonPayload.toString().toByteArray())
-            }
-            
-            val responseCode = connection.responseCode
-            val responseBody = if (responseCode == HttpURLConnection.HTTP_CREATED) {
-                connection.inputStream.bufferedReader().readText()
-            } else {
-                connection.errorStream?.bufferedReader()?.readText() ?: "Unknown error"
-            }
-            
-            withContext(Dispatchers.Main) {
-                if (responseCode == HttpURLConnection.HTTP_CREATED) {
-                    try {
-                        val response = JSONObject(responseBody)
-                        if (response.getBoolean("success")) {
-                            // Now the response is flat and easy to parse
-                            val accessToken = response.getString("access_token")
-                            val refreshToken = response.getString("refresh_token")
-                            val userId = response.getString("user_id")
-                            val userEmail = response.getString("user_email")
-                            val userFullName = response.getString("user_fullName")
-                            
-                            // Store tokens and user info in SharedPreferences
-                            val authManager = AuthManager(context)
-                            authManager.saveUserData(accessToken, refreshToken, userId, userEmail, userFullName)
-                            
-                            onSuccess()
-                        } else {
-                            onError("Sign up failed: ${response.optString("message", "Unknown error")}")
-                        }
-                    } catch (e: Exception) {
-                        onError("Failed to parse response: ${e.message}")
-                    }
-                } else {
-                    try {
-                        val errorResponse = JSONObject(responseBody)
-                        val errorMessage = errorResponse.optString("message", "Sign up failed")
-                        
-                        // Handle specific error cases
-                        when {
-                            errorMessage.contains("Email already registered") -> {
-                                onError("An account with this email already exists. Please sign in instead.")
-                            }
-                            errorMessage.contains("Passwords do not match") -> {
-                                onError("Passwords do not match. Please check and try again.")
-                            }
-                            errorMessage.contains("Password must") -> {
-                                onError("Password must be at least 8 characters long and contain uppercase, lowercase, number, and special character.")
-                            }
-                            errorMessage.contains("Invalid email") -> {
-                                onError("Please enter a valid email address.")
-                            }
-                            errorMessage.contains("All fields are required") -> {
-                                onError("Please fill in all required fields.")
-                            }
-                            else -> {
-                                onError(errorMessage)
-                            }
-                        }
-                    } catch (e: Exception) {
-                        onError("Sign up failed. Please try again.")
-                    }
-                }
-            }
+            onSuccess()
+        } else {
+            onError(response.message ?: "Sign up failed")
         }
-    } catch (e: IOException) {
-        withContext(Dispatchers.Main) {
-            onError("Network error: ${e.message}")
+        
+    } catch (e: HttpException) {
+        val errorMessage = when (e.code()) {
+            400 -> "Invalid input. Please check your information and try again."
+            409 -> "An account with this email already exists. Please sign in instead."
+            422 -> "Password must be at least 8 characters long and contain uppercase, lowercase, number, and special character."
+            429 -> "Too many attempts. Please try again later."
+            500 -> "Server error. Please try again later."
+            else -> "Sign up failed. Please try again."
         }
+        onError(errorMessage)
     } catch (e: Exception) {
-        withContext(Dispatchers.Main) {
-            onError("Error: ${e.message}")
-        }
+        onError("Network error: ${e.message}")
     } finally {
         onLoading(false)
     }

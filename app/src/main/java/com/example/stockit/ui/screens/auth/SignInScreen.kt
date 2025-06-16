@@ -35,13 +35,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.stockit.ui.theme.StockItTheme
 import com.example.stockit.utils.AuthManager
+import com.example.stockit.network.ApiConfig
+import com.example.stockit.network.SignInRequest
 import kotlinx.coroutines.launch
-import java.io.IOException
-import java.net.HttpURLConnection
-import java.net.URL
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import org.json.JSONObject
+import retrofit2.HttpException
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -404,7 +401,7 @@ fun SignInScreen(
     }
 }
 
-// Updated signInUser function with simple endpoint
+// Updated signInUser function using ApiConfig
 suspend fun signInUser(
     email: String,
     password: String,
@@ -416,95 +413,36 @@ suspend fun signInUser(
     onLoading(true)
     
     try {
-        withContext(Dispatchers.IO) {
-            val url = URL("https://tn-defence-surplus-least.trycloudflare.com/api/auth/signin-simple")
-            val connection = url.openConnection() as HttpURLConnection
+        val request = SignInRequest(email, password)
+        val response = ApiConfig.authApiService.signIn(request)
+        
+        if (response.success) {
+            val accessToken = response.access_token ?: ""
+            val refreshToken = response.refresh_token ?: ""
+            val userId = response.user_id ?: ""
+            val userEmail = response.user_email ?: ""
+            val userFullName = response.user_fullName ?: ""
             
-            connection.requestMethod = "POST"
-            connection.setRequestProperty("Content-Type", "application/json")
-            connection.doOutput = true
+            // Store tokens and user info in SharedPreferences
+            val authManager = AuthManager(context)
+            authManager.saveUserData(accessToken, refreshToken, userId, userEmail, userFullName)
             
-            // Create JSON payload
-            val jsonPayload = JSONObject().apply {
-                put("email", email)
-                put("password", password)
-            }
-            
-            // Send request
-            connection.outputStream.use { os ->
-                os.write(jsonPayload.toString().toByteArray())
-            }
-            
-            val responseCode = connection.responseCode
-            val responseBody = if (responseCode == HttpURLConnection.HTTP_OK) {
-                connection.inputStream.bufferedReader().readText()
-            } else {
-                connection.errorStream?.bufferedReader()?.readText() ?: "Unknown error"
-            }
-            
-            withContext(Dispatchers.Main) {
-                if (responseCode == HttpURLConnection.HTTP_OK) {
-                    try {
-                        val response = JSONObject(responseBody)
-                        if (response.getBoolean("success")) {
-                            // Now the response is flat and easy to parse
-                            val accessToken = response.getString("access_token")
-                            val refreshToken = response.getString("refresh_token")
-                            val userId = response.getString("user_id")
-                            val userEmail = response.getString("user_email")
-                            val userFullName = response.getString("user_fullName")
-                            
-                            // Store tokens and user info in SharedPreferences
-                            val authManager = AuthManager(context)
-                            authManager.saveUserData(accessToken, refreshToken, userId, userEmail, userFullName)
-                            
-                            onSuccess()
-                        } else {
-                            onError("Sign in failed: ${response.optString("message", "Unknown error")}")
-                        }
-                    } catch (e: Exception) {
-                        onError("Failed to parse response: ${e.message}")
-                    }
-                } else {
-                    try {
-                        val errorResponse = JSONObject(responseBody)
-                        val errorMessage = errorResponse.optString("message", "Sign in failed")
-                        
-                        // Handle specific error cases
-                        when {
-                            errorMessage.contains("Invalid email or password") -> {
-                                onError("Invalid email or password. Please check your credentials.")
-                            }
-                            errorMessage.contains("Account temporarily locked") -> {
-                                onError("Account temporarily locked due to too many failed attempts. Please try again later.")
-                            }
-                            errorMessage.contains("Email and password are required") -> {
-                                onError("Please enter both email and password.")
-                            }
-                            errorMessage.contains("Account is deactivated") -> {
-                                onError("Your account has been deactivated. Please contact support.")
-                            }
-                            errorMessage.contains("Invalid email format") -> {
-                                onError("Please enter a valid email address.")
-                            }
-                            else -> {
-                                onError(errorMessage)
-                            }
-                        }
-                    } catch (e: Exception) {
-                        onError("Sign in failed. Please try again.")
-                    }
-                }
-            }
+            onSuccess()
+        } else {
+            onError(response.message ?: "Sign in failed")
         }
-    } catch (e: IOException) {
-        withContext(Dispatchers.Main) {
-            onError("Network error: ${e.message}")
+        
+    } catch (e: HttpException) {
+        val errorMessage = when (e.code()) {
+            400 -> "Invalid email or password. Please check your credentials."
+            401 -> "Invalid email or password. Please check your credentials."
+            429 -> "Too many attempts. Please try again later."
+            500 -> "Server error. Please try again later."
+            else -> "Sign in failed. Please try again."
         }
+        onError(errorMessage)
     } catch (e: Exception) {
-        withContext(Dispatchers.Main) {
-            onError("Error: ${e.message}")
-        }
+        onError("Network error: ${e.message}")
     } finally {
         onLoading(false)
     }

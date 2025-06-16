@@ -12,24 +12,24 @@ class AuthManager(context: Context) {
         return sharedPrefs.getBoolean("is_logged_in", false)
     }
     
-    fun getAccessToken(): String? {
-        return sharedPrefs.getString("access_token", null)
+    fun getAccessToken(): String {
+        return sharedPrefs.getString("access_token", "") ?: ""
     }
     
-    fun getRefreshToken(): String? {
-        return sharedPrefs.getString("refresh_token", null)
+    fun getRefreshToken(): String {
+        return sharedPrefs.getString("refresh_token", "") ?: ""
     }
     
-    fun getUserId(): String? {
-        return sharedPrefs.getString("user_id", null)
+    fun getUserId(): String {
+        return sharedPrefs.getString("user_id", "") ?: ""
     }
     
-    fun getUserEmail(): String? {
-        return sharedPrefs.getString("user_email", null)
+    fun getUserEmail(): String {
+        return sharedPrefs.getString("user_email", "") ?: ""
     }
     
-    fun getUserFullName(): String? {
-        return sharedPrefs.getString("user_full_name", null)
+    fun getUserFullName(): String {
+        return sharedPrefs.getString("user_full_name", "") ?: ""
     }
     
     fun logout() {
@@ -52,23 +52,6 @@ class AuthManager(context: Context) {
             putString("user_id", userId)
             putString("user_email", userEmail)
             putString("user_full_name", userFullName)
-            putBoolean("is_logged_in", true)
-            apply()
-        }
-    }
-
-    // Overloaded method to accept JSONObject directly
-    fun saveUserData(
-        accessToken: String,
-        refreshToken: String,
-        user: JSONObject
-    ) {
-        with(sharedPrefs.edit()) {
-            putString("access_token", accessToken)
-            putString("refresh_token", refreshToken)
-            putString("user_id", user.getString("id"))
-            putString("user_email", user.getString("email"))
-            putString("user_full_name", user.getString("fullName"))
             putBoolean("is_logged_in", true)
             apply()
         }
