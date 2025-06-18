@@ -24,6 +24,7 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 import javax.inject.Inject
+import android.util.Log
 
 data class StockDetailUiState(
     val stockData: StockData? = null,
@@ -38,8 +39,8 @@ data class StockDetailUiState(
     val affordabilityResult: AffordabilityResult? = null,
     val isInWatchlist: Boolean = false,
     val watchlistLoading: Boolean = false,
-    val userHolding: UserHolding? = null, // Add this
-    val isLoadingHolding: Boolean = false // Add this
+    val userHolding: UserHolding? = null,
+    val isLoadingHolding: Boolean = false
 )
 
 data class StockData(
@@ -146,6 +147,130 @@ class StockDetailViewModel @Inject constructor(
                     isLoading = false,
                     error = "Failed to load stock data: ${e.message}"
                 )
+            }
+        }
+    }
+    
+    // Background retry methods
+    fun retryStockDataInBackground(symbol: String) {
+        if (!_uiState.value.isLoading) {
+            viewModelScope.launch {
+                _uiState.value = _uiState.value.copy(isLoading = true)
+                
+                try {
+                    // Load basic stock data
+                    val stockResponse = ApiConfig.stockApiService.getStockQuote(symbol)
+                    
+                    if (stockResponse.success) {
+                        val stockData = parseStockData(stockResponse.data, symbol)
+                        _uiState.value = _uiState.value.copy(stockData = stockData)
+                        
+                        // Load detailed stock information
+                        val detailsResponse = ApiConfig.stockApiService.getStockDetails(symbol)
+                        
+                        if (detailsResponse.success) {
+                            val stockDetails = parseStockDetails(detailsResponse.data)
+                            _uiState.value = _uiState.value.copy(stockDetails = stockDetails)
+                        }
+                        
+                        Log.i("StockDetailViewModel", "Background stock data retry successful for $symbol")
+                    }
+                    
+                    _uiState.value = _uiState.value.copy(isLoading = false)
+                    
+                } catch (e: Exception) {
+                    Log.w("StockDetailViewModel", "Background stock data retry failed for $symbol", e)
+                    _uiState.value = _uiState.value.copy(isLoading = false)
+                }
+            }
+        }
+    }
+    
+    fun retryChartDataInBackground(symbol: String, timeFrame: String) {
+        if (!_uiState.value.isLoadingChart) {
+            viewModelScope.launch {
+                _uiState.value = _uiState.value.copy(isLoadingChart = true)
+                
+                try {
+                    val response = when (timeFrame) {
+                        "LIVE" -> ApiConfig.stockApiService.getIntradayData(symbol)
+                        "1W" -> ApiConfig.stockApiService.getWeeklyData(symbol)
+                        "1M" -> ApiConfig.stockApiService.getMonthlyData(symbol)
+                        "3M" -> ApiConfig.stockApiService.getQuarterlyData(symbol)
+                        "6M" -> ApiConfig.stockApiService.getHistoricalData(symbol)
+                        "Y" -> ApiConfig.stockApiService.getYearlyData(symbol)
+                        "All" -> ApiConfig.stockApiService.getHistoricalData(symbol)
+                        else -> ApiConfig.stockApiService.getMonthlyData(symbol)
+                    }
+                    
+                    if (response.success && response.prices != null) {
+                        val chartData = parseChartDataFromResponse(response)
+                        
+                        _uiState.value = _uiState.value.copy(
+                            chartData = chartData,
+                            isLoadingChart = false
+                        )
+                        
+                        Log.i("StockDetailViewModel", "Background chart data retry successful: ${chartData.size} points for $symbol ($timeFrame)")
+                    } else {
+                        _uiState.value = _uiState.value.copy(isLoadingChart = false)
+                        Log.w("StockDetailViewModel", "Background chart data retry failed for $symbol: ${response.error}")
+                    }
+                    
+                } catch (e: Exception) {
+                    Log.w("StockDetailViewModel", "Background chart data retry failed for $symbol", e)
+                    _uiState.value = _uiState.value.copy(isLoadingChart = false)
+                }
+            }
+        }
+    }
+    
+    fun retryUserHoldingInBackground(symbol: String) {
+        if (!_uiState.value.isLoadingHolding && _uiState.value.isAuthenticated) {
+            viewModelScope.launch {
+                _uiState.value = _uiState.value.copy(isLoadingHolding = true)
+                
+                try {
+                    val token = authManager.getAccessToken()
+                    if (token.isNotEmpty()) {
+                        val response = ApiConfig.stockApiService.getUserStockHolding(
+                            token = "Bearer $token",
+                            symbol = symbol
+                        )
+                        
+                        if (response.success && response.owns == true) {
+                            val holding = UserHolding(
+                                symbol = response.symbol ?: symbol,
+                                owns = response.owns ?: false,
+                                quantity = response.quantity ?: 0,
+                                averagePrice = response.averagePrice ?: 0.0,
+                                investedAmount = response.investedAmount ?: 0.0,
+                                currentPrice = response.currentPrice ?: 0.0,
+                                currentValue = response.currentValue ?: 0.0,
+                                profitLoss = response.profitLoss ?: 0.0,
+                                firstBuyDate = response.firstBuyDate
+                            )
+                            
+                            _uiState.value = _uiState.value.copy(
+                                userHolding = holding,
+                                isLoadingHolding = false
+                            )
+                            
+                            Log.i("StockDetailViewModel", "Background user holding retry successful for $symbol")
+                        } else {
+                            _uiState.value = _uiState.value.copy(
+                                userHolding = null,
+                                isLoadingHolding = false
+                            )
+                        }
+                    } else {
+                        _uiState.value = _uiState.value.copy(isLoadingHolding = false)
+                    }
+                    
+                } catch (e: Exception) {
+                    Log.w("StockDetailViewModel", "Background user holding retry failed for $symbol", e)
+                    _uiState.value = _uiState.value.copy(isLoadingHolding = false)
+                }
             }
         }
     }
@@ -285,70 +410,6 @@ class StockDetailViewModel @Inject constructor(
             e.printStackTrace()
             emptyList()
         }
-    }
-    
-    // Fallback parsing function for legacy support
-    private fun parseChartData(data: Any?): List<ChartPoint> {
-        return try {
-            println("🔍 Raw chart data received: $data")
-            println("🔍 Data type: ${data?.javaClass?.simpleName}")
-            
-            // Convert to JSON for easier inspection
-            val dataAsJson = gson.toJson(data)
-            println("🔍 Data as JSON: $dataAsJson")
-            
-            val jsonObject = gson.toJsonTree(data).asJsonObject
-            println("🔍 JSON object keys: ${jsonObject.keySet()}")
-            
-            // Check if this is your API's specific structure with "prices" array
-            if (jsonObject.has("prices")) {
-                println("📊 Found API response with 'prices' array")
-                val pricesArray = jsonObject.getAsJsonArray("prices")
-                return parseApiPricesArray(pricesArray)
-            }
-            
-            // Return empty list for unknown structures
-            println("⚠️ Unknown data structure")
-            emptyList()
-            
-        } catch (e: Exception) {
-            println("❌ Chart parsing error: ${e.message}")
-            e.printStackTrace()
-            emptyList()
-        }
-    }
-    
-    // Helper function to parse prices array from JSON
-    private fun parseApiPricesArray(pricesArray: com.google.gson.JsonArray): List<ChartPoint> {
-        val chartPoints = mutableListOf<ChartPoint>()
-        
-        pricesArray.forEach { element ->
-            try {
-                val priceObject = element.asJsonObject
-                
-                // Handle both old and new formats
-                val timestamp = if (priceObject.has("time")) {
-                    parseISOToTimestamp(priceObject.get("time").asString)
-                } else if (priceObject.has("date")) {
-                    parseDateToTimestamp(priceObject.get("date").asString)
-                } else {
-                    System.currentTimeMillis()
-                }
-                
-                val price = priceObject.get("close").asDouble
-                val volume = if (priceObject.has("volume") && !priceObject.get("volume").isJsonNull) {
-                    priceObject.get("volume").asLong
-                } else null
-                
-                chartPoints.add(ChartPoint(timestamp, price, volume))
-                
-            } catch (e: Exception) {
-                println("⚠️ Error parsing API price object: ${e.message}")
-            }
-        }
-        
-        println("📊 Parsed ${chartPoints.size} points from API prices structure")
-        return chartPoints
     }
     
     // Enhanced trading functions with proper token management
@@ -684,7 +745,6 @@ class StockDetailViewModel @Inject constructor(
         }
     }
 
-    // Add this function to StockDetailViewModel class
     fun loadUserHolding(symbol: String) {
         viewModelScope.launch {
             if (!validateAuthentication()) return@launch

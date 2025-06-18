@@ -27,7 +27,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.hilt.navigation.compose.hiltViewModel // Add this import
+import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.delay
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.geometry.Offset
@@ -45,7 +45,7 @@ import kotlin.math.*
 fun StockDetailScreen(
     stockSymbol: String,
     onBackClick: () -> Unit,
-    viewModel: StockDetailViewModel = hiltViewModel() // Now this will work
+    viewModel: StockDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -95,6 +95,28 @@ fun StockDetailScreen(
         if (uiState.stockData != null) {
             println("🔄 Loading chart data for timeframe: $selectedTimeFrame")
             viewModel.loadHistoricalData(stockSymbol, selectedTimeFrame)
+        }
+    }
+    
+    // Background retry mechanism - retry every 2 seconds for missing data
+    LaunchedEffect(uiState.isAuthenticated) {
+        while (true) {
+            delay(2000) // Wait 2 seconds
+            
+            // Retry stock data if missing and not loading
+            if (uiState.stockData == null && !uiState.isLoading) {
+                viewModel.retryStockDataInBackground(stockSymbol)
+            }
+            
+            // Retry chart data if missing and not loading
+            if (uiState.chartData.isEmpty() && !uiState.isLoadingChart && uiState.stockData != null) {
+                viewModel.retryChartDataInBackground(stockSymbol, selectedTimeFrame)
+            }
+            
+            // Retry user holdings if authenticated but holdings missing and not loading
+            if (uiState.isAuthenticated && uiState.userHolding == null && !uiState.isLoadingHolding) {
+                viewModel.retryUserHoldingInBackground(stockSymbol)
+            }
         }
     }
     

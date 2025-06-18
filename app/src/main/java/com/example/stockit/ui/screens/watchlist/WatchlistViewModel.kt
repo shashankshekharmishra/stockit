@@ -1,9 +1,10 @@
 package com.example.stockit.ui.screens.watchlist
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.stockit.network.WatchlistStock
 import com.example.stockit.data.repository.WatchlistRepository
+import com.example.stockit.network.WatchlistStock
 import com.example.stockit.utils.AuthManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -102,6 +103,34 @@ class WatchlistViewModel @Inject constructor(
                         )
                     }
                 }
+        }
+    }
+
+    fun retryWatchlistInBackground() {
+        if (!_uiState.value.isLoading && !_uiState.value.isRefreshing) {
+            viewModelScope.launch {
+                _uiState.update { it.copy(isLoading = true) }
+                try {
+                    watchlistRepository.getUserWatchlist()
+                        .onSuccess { stocks ->
+                            _uiState.update { 
+                                it.copy(
+                                    watchlistStocks = stocks,
+                                    isLoading = false,
+                                    error = null
+                                )
+                            }
+                            Log.i("WatchlistViewModel", "Background watchlist retry successful: ${stocks.size} stocks loaded")
+                        }
+                        .onFailure { exception ->
+                            _uiState.update { it.copy(isLoading = false) }
+                            Log.w("WatchlistViewModel", "Background watchlist retry failed", exception)
+                        }
+                } catch (e: Exception) {
+                    Log.w("WatchlistViewModel", "Background watchlist retry failed", e)
+                    _uiState.update { it.copy(isLoading = false) }
+                }
+            }
         }
     }
 

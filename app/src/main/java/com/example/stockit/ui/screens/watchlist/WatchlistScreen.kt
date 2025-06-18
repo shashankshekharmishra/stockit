@@ -64,6 +64,20 @@ fun WatchlistScreen(
         startAnimation = true
     }
     
+    // Background retry mechanism - retry every 2 seconds if watchlist is empty for authenticated users
+    LaunchedEffect(uiState.isAuthenticated) {
+        if (uiState.isAuthenticated) {
+            while (true) {
+                delay(2000) // Wait 2 seconds
+                
+                // Check if we need to retry watchlist data
+                if (uiState.watchlistStocks.isEmpty() && !uiState.isLoading && !uiState.isRefreshing) {
+                    viewModel.retryWatchlistInBackground()
+                }
+            }
+        }
+    }
+    
     // Handle error messages
     LaunchedEffect(uiState.error) {
         uiState.error?.let { error ->
