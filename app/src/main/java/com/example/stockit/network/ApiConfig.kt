@@ -8,7 +8,7 @@ import retrofit2.http.*
 import java.util.concurrent.TimeUnit
 
 object ApiConfig {
-    private const val BASE_URL = "https://tn-defence-surplus-least.trycloudflare.com/"
+    private const val BASE_URL = "https://test.vardhin.tech/"
     
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
         level = HttpLoggingInterceptor.Level.BODY
