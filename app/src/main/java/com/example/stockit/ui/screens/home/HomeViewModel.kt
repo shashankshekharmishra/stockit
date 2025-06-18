@@ -8,10 +8,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
 import com.example.stockit.network.ApiConfig
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import android.util.Log
+import retrofit2.HttpException
+import java.io.IOException
+import kotlin.math.min
+import kotlin.math.pow
 
 class HomeViewModel : ViewModel() {
     
@@ -22,6 +27,17 @@ class HomeViewModel : ViewModel() {
     private val gson = Gson()
     private var authToken: String? = null
     
+    // Retry configuration
+    private var portfolioRetryAttempt = 0
+    private var stocksRetryAttempt = 0
+    private val maxRetryAttempts = 5
+    private val baseDelayMs = 2000L // 2 seconds
+    private val maxDelayMs = 30000L // 30 seconds
+    
+    fun setAuthToken(token: String?) {
+        authToken = token
+    }
+    
     fun loadData() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(
@@ -30,9 +46,13 @@ class HomeViewModel : ViewModel() {
                 error = null
             )
             
+            // Reset retry counters
+            portfolioRetryAttempt = 0
+            stocksRetryAttempt = 0
+            
             try {
-                val portfolioDeferred = async { loadPortfolioSummary() }
-                val stocksDeferred = async { loadTrendingStocks() }
+                val portfolioDeferred = async { loadPortfolioSummaryWithRetry() }
+                val stocksDeferred = async { loadTrendingStocksWithRetry() }
                 
                 awaitAll(portfolioDeferred, stocksDeferred)
                 
@@ -45,6 +65,90 @@ class HomeViewModel : ViewModel() {
                 )
             }
         }
+    }
+    
+    private suspend fun loadPortfolioSummaryWithRetry() {
+        while (portfolioRetryAttempt < maxRetryAttempts) {
+            try {
+                loadPortfolioSummary()
+                return // Success, exit retry loop
+            } catch (e: Exception) {
+                portfolioRetryAttempt++
+                
+                if (portfolioRetryAttempt >= maxRetryAttempts) {
+                    Log.e("HomeViewModel", "Max retry attempts reached for portfolio", e)
+                    _uiState.value = _uiState.value.copy(
+                        isLoadingPortfolio = false,
+                        error = "Failed to load portfolio after ${maxRetryAttempts} attempts"
+                    )
+                    return
+                }
+                
+                val delayMs = calculateBackoffDelay(portfolioRetryAttempt)
+                Log.w("HomeViewModel", "Portfolio retry attempt $portfolioRetryAttempt in ${delayMs}ms", e)
+                
+                delay(delayMs)
+            }
+        }
+    }
+    
+    private suspend fun loadTrendingStocksWithRetry() {
+        while (stocksRetryAttempt < maxRetryAttempts) {
+            try {
+                loadTrendingStocks()
+                return // Success, exit retry loop
+            } catch (e: HttpException) {
+                when (e.code()) {
+                    503, 502, 504 -> {
+                        // Server errors - retry with backoff
+                        stocksRetryAttempt++
+                        
+                        if (stocksRetryAttempt >= maxRetryAttempts) {
+                            Log.w("HomeViewModel", "Max retry attempts reached for trending stocks, using fallback")
+                            loadFallbackTrendingStocks()
+                            return
+                        }
+                        
+                        val delayMs = calculateBackoffDelay(stocksRetryAttempt)
+                        Log.w("HomeViewModel", "Trending stocks HTTP ${e.code()} retry attempt $stocksRetryAttempt in ${delayMs}ms")
+                        
+                        delay(delayMs)
+                    }
+                    else -> {
+                        // Other HTTP errors - use fallback immediately
+                        Log.w("HomeViewModel", "HTTP ${e.code()} error, using fallback data immediately")
+                        loadFallbackTrendingStocks()
+                        return
+                    }
+                }
+            } catch (e: IOException) {
+                // Network errors - retry with backoff
+                stocksRetryAttempt++
+                
+                if (stocksRetryAttempt >= maxRetryAttempts) {
+                    Log.w("HomeViewModel", "Max retry attempts reached for trending stocks due to network error, using fallback")
+                    loadFallbackTrendingStocks()
+                    return
+                }
+                
+                val delayMs = calculateBackoffDelay(stocksRetryAttempt)
+                Log.w("HomeViewModel", "Network error retry attempt $stocksRetryAttempt in ${delayMs}ms", e)
+                
+                delay(delayMs)
+            } catch (e: Exception) {
+                // Other errors - use fallback immediately
+                Log.e("HomeViewModel", "Unexpected error loading trending stocks, using fallback", e)
+                loadFallbackTrendingStocks()
+                return
+            }
+        }
+    }
+    
+    private fun calculateBackoffDelay(attempt: Int): Long {
+        // Exponential backoff with jitter: delay = base * 2^attempt + random(0, 1000)
+        val exponentialDelay = (baseDelayMs * 2.0.pow(attempt - 1)).toLong()
+        val jitter = (0..1000).random()
+        return min(exponentialDelay + jitter, maxDelayMs)
     }
     
     private suspend fun loadPortfolioSummary() {
@@ -60,151 +164,158 @@ class HomeViewModel : ViewModel() {
             val response = apiService.getUserSummary("Bearer $authToken")
             Log.d("HomeViewModel", "Portfolio response: $response")
             
-            if (response.success && response.data != null) {
-                // Parse the response data
-                val dataJson = gson.toJson(response.data)
-                val summaryData = gson.fromJson(dataJson, ApiUserSummary::class.java)
-                
+            if (response.success) {
                 val summary = PortfolioSummary(
-                    totalValue = summaryData.portfolio.totalValue,
-                    totalInvestment = summaryData.portfolio.totalInvestment,
-                    availableBalance = summaryData.wallet.balance,
-                    totalShares = summaryData.portfolio.totalShares,
-                    totalProfitLoss = summaryData.totalProfitLoss,
-                    totalProfitLossPercentage = summaryData.totalProfitLossPercentage
+                    totalValue = response.portfolioCurrentValue ?: 0.0,
+                    totalInvestment = response.portfolioInvested ?: 0.0,
+                    availableBalance = response.balance ?: 0.0,
+                    totalShares = response.totalHoldings ?: 0,
+                    totalProfitLoss = response.portfolioPnL ?: 0.0,
+                    totalProfitLossPercentage = response.portfolioPnLPercent ?: 0.0
                 )
                 
                 _uiState.value = _uiState.value.copy(
                     portfolioSummary = summary,
                     isLoadingPortfolio = false
                 )
+                
+                Log.i("HomeViewModel", "Portfolio loaded successfully: $summary")
             } else {
-                throw Exception("Failed to load portfolio summary")
+                throw Exception("API returned success=false")
             }
         } catch (e: Exception) {
             Log.e("HomeViewModel", "Error loading portfolio", e)
-            _uiState.value = _uiState.value.copy(
-                isLoadingPortfolio = false,
-                error = "Failed to load portfolio: ${e.message}"
-            )
+            throw e // Re-throw to be handled by retry logic
         }
     }
     
     private suspend fun loadTrendingStocks() {
         try {
-            val response = apiService.getTrendingStocks(limit = 20, update = "false") // Increased from 10 to 20
+            val response = apiService.getTrendingStocks()
             Log.d("HomeViewModel", "Trending stocks response: $response")
             
-            if (response.success && response.stocks != null) {
-                // Convert TrendingStock to StockData format - removed .take(5) to show all 20
-                val stocks = response.stocks.map { stock ->
+            if (response.success && !response.stocks.isNullOrEmpty()) {
+                val stockList = response.stocks.map { stock ->
                     StockData(
                         symbol = stock.symbol,
-                        name = stock.name ?: stock.symbol,
+                        name = stock.name,
                         price = stock.price ?: 0.0,
                         change = stock.change,
                         changePercent = stock.changePercent,
-                        marketCap = null, // Not provided in trending API
-                        volume = stock.volume
+                        volume = stock.volume,
+                        high = stock.high,
+                        low = stock.low,
+                        rank = stock.rank,
+                        positive = stock.positive
                     )
                 }
                 
                 _uiState.value = _uiState.value.copy(
-                    trendingStocks = stocks,
+                    trendingStocks = stockList,
                     isLoadingStocks = false
                 )
+                
+                Log.i("HomeViewModel", "Trending stocks loaded: ${stockList.size} stocks")
             } else {
-                throw Exception("Failed to load trending stocks")
+                Log.w("HomeViewModel", "Empty or unsuccessful trending stocks response")
+                loadFallbackTrendingStocks()
             }
         } catch (e: Exception) {
             Log.e("HomeViewModel", "Error loading trending stocks", e)
-            // Load fallback data for trending stocks if API fails
-            loadFallbackTrendingStocks()
+            throw e // Re-throw to be handled by retry logic
         }
     }
     
-    fun setAuthToken(token: String?) {
-        authToken = token
-        Log.d("HomeViewModel", "Auth token set: ${token?.take(10)}...")
-    }
-    
-    fun clearError() {
-        _uiState.value = _uiState.value.copy(error = null)
+    private fun loadFallbackTrendingStocks() {
+        val fallbackStocks = listOf(
+            StockData(
+                symbol = "RELIANCE",
+                name = "Reliance Industries Limited",
+                price = 2456.75,
+                change = 23.45,
+                changePercent = 0.96,
+                positive = true,
+                rank = 1
+            ),
+            StockData(
+                symbol = "TCS",
+                name = "Tata Consultancy Services Limited",
+                price = 3567.80,
+                change = -12.30,
+                changePercent = -0.34,
+                positive = false,
+                rank = 2
+            ),
+            StockData(
+                symbol = "HDFCBANK",
+                name = "HDFC Bank Limited",
+                price = 1632.45,
+                change = 8.90,
+                changePercent = 0.55,
+                positive = true,
+                rank = 3
+            ),
+            StockData(
+                symbol = "INFY",
+                name = "Infosys Limited",
+                price = 1456.25,
+                change = 15.67,
+                changePercent = 1.09,
+                positive = true,
+                rank = 4
+            ),
+            StockData(
+                symbol = "ICICIBANK",
+                name = "ICICI Bank Limited",
+                price = 987.60,
+                change = -5.40,
+                changePercent = -0.54,
+                positive = false,
+                rank = 5
+            )
+        )
+        
+        _uiState.value = _uiState.value.copy(
+            trendingStocks = fallbackStocks,
+            isLoadingStocks = false
+        )
+        
+        Log.i("HomeViewModel", "Loaded fallback trending stocks")
     }
     
     fun retry() {
         loadData()
     }
     
-    fun refreshTrendingStocks() {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoadingStocks = true)
-            
-            try {
-                // Request fresh data from server - increased from 10 to 20
-                val response = apiService.getTrendingStocks(limit = 20, update = "true")
-                Log.d("HomeViewModel", "Refreshed trending stocks response: $response")
-                
-                if (response.success && response.stocks != null) {
-                    // Removed .take(5) to show all 20 stocks
-                    val stocks = response.stocks.map { stock ->
-                        StockData(
-                            symbol = stock.symbol,
-                            name = stock.name ?: stock.symbol,
-                            price = stock.price ?: 0.0,
-                            change = stock.change,
-                            changePercent = stock.changePercent,
-                            marketCap = null,
-                            volume = stock.volume
-                        )
-                    }
-                    
-                    _uiState.value = _uiState.value.copy(
-                        trendingStocks = stocks,
-                        isLoadingStocks = false
-                    )
-                } else {
-                    throw Exception("Failed to refresh trending stocks")
+    fun retryPortfolioInBackground() {
+        if (!_uiState.value.isLoadingPortfolio) {
+            viewModelScope.launch {
+                _uiState.value = _uiState.value.copy(isLoadingPortfolio = true)
+                try {
+                    loadPortfolioSummary()
+                } catch (e: Exception) {
+                    Log.w("HomeViewModel", "Background portfolio retry failed", e)
+                    _uiState.value = _uiState.value.copy(isLoadingPortfolio = false)
                 }
-            } catch (e: Exception) {
-                Log.e("HomeViewModel", "Error refreshing trending stocks", e)
-                _uiState.value = _uiState.value.copy(
-                    isLoadingStocks = false,
-                    error = "Failed to refresh trending stocks: ${e.message}"
-                )
             }
         }
     }
     
-    private fun loadFallbackTrendingStocks() {
-        // Expanded fallback data to show more stocks
-        val fallbackStocks = listOf(
-            StockData("RELIANCE", "Reliance Industries Ltd.", 2850.0, 25.0, 0.88),
-            StockData("TCS", "Tata Consultancy Services Ltd.", 3720.0, -15.0, -0.40),
-            StockData("INFY", "Infosys Ltd.", 1650.0, 12.0, 0.73),
-            StockData("HDFCBANK", "HDFC Bank Ltd.", 1580.0, 8.0, 0.51),
-            StockData("ICICIBANK", "ICICI Bank Ltd.", 1020.0, -5.0, -0.49),
-            StockData("HINDUNILVR", "Hindustan Unilever Ltd.", 2480.0, 18.0, 0.73),
-            StockData("BHARTIARTL", "Bharti Airtel Ltd.", 860.0, -8.0, -0.92),
-            StockData("ITC", "ITC Ltd.", 420.0, 3.5, 0.84),
-            StockData("KOTAKBANK", "Kotak Mahindra Bank Ltd.", 1750.0, 12.0, 0.69),
-            StockData("LT", "Larsen & Toubro Ltd.", 3200.0, -20.0, -0.62),
-            StockData("SBIN", "State Bank of India", 580.0, 5.0, 0.87),
-            StockData("ASIANPAINT", "Asian Paints Ltd.", 3150.0, -25.0, -0.79),
-            StockData("MARUTI", "Maruti Suzuki India Ltd.", 10500.0, 150.0, 1.45),
-            StockData("HCLTECH", "HCL Technologies Ltd.", 1180.0, 8.0, 0.68),
-            StockData("AXISBANK", "Axis Bank Ltd.", 980.0, -12.0, -1.21),
-            StockData("BAJFINANCE", "Bajaj Finance Ltd.", 6800.0, 85.0, 1.27),
-            StockData("WIPRO", "Wipro Ltd.", 420.0, -3.0, -0.71),
-            StockData("TECHM", "Tech Mahindra Ltd.", 1250.0, 15.0, 1.22),
-            StockData("ULTRACEMCO", "UltraTech Cement Ltd.", 8200.0, -100.0, -1.20),
-            StockData("NESTLEIND", "Nestle India Ltd.", 22000.0, 200.0, 0.92)
-        )
-        
-        _uiState.value = _uiState.value.copy(
-            trendingStocks = fallbackStocks,
-            isLoadingStocks = false,
-            error = "Using cached trending stocks data"
-        )
+    fun retryTrendingStocksInBackground() {
+        if (!_uiState.value.isLoadingStocks) {
+            viewModelScope.launch {
+                _uiState.value = _uiState.value.copy(isLoadingStocks = true)
+                try {
+                    loadTrendingStocks()
+                } catch (e: Exception) {
+                    Log.w("HomeViewModel", "Background trending stocks retry failed", e)
+                    loadFallbackTrendingStocks()
+                }
+            }
+        }
+    }
+    
+    fun clearError() {
+        _uiState.value = _uiState.value.copy(error = null)
     }
 }

@@ -92,6 +92,23 @@ fun HomeScreen(
         viewModel.loadData()
     }
 
+    // Background retry mechanism - retry every 2 seconds if data is missing
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(2000) // Wait 2 seconds
+            
+            // Check if we need to retry portfolio data
+            if (uiState.portfolioSummary == null && !uiState.isLoadingPortfolio) {
+                viewModel.retryPortfolioInBackground()
+            }
+            
+            // Check if we need to retry trending stocks (if list is empty and not loading)
+            if (uiState.trendingStocks.isEmpty() && !uiState.isLoadingStocks) {
+                viewModel.retryTrendingStocksInBackground()
+            }
+        }
+    }
+
     // Show error snackbar and auto-dismiss after 1 second
     LaunchedEffect(uiState.error) {
         uiState.error?.let { error ->

@@ -371,6 +371,22 @@ data class TransactionHistoryResponse(
 
 data class UserSummaryResponse(
     val success: Boolean,
+    val userId: Int? = null,
+    val balance: Double? = null,
+    val totalInvested: Double? = null,
+    val totalCurrentValue: Double? = null,
+    val totalProfitLoss: Double? = null,
+    val totalProfitLossPercent: Double? = null,
+    val totalNetWorth: Double? = null,
+    val totalHoldings: Int? = null,
+    val portfolioInvested: Double? = null,
+    val portfolioCurrentValue: Double? = null,
+    val portfolioPnL: Double? = null,
+    val portfolioPnLPercent: Double? = null,
+    val holdings: List<Any>? = null,
+    val recentStockTransactions: List<Any>? = null,
+    val recentWalletTransactions: List<Any>? = null,
+    val walletUpdatedAt: String? = null,
     val data: Any? = null,
     val timestamp: String? = null
 )
