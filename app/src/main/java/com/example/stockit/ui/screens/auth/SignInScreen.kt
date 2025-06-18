@@ -20,6 +20,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -58,23 +59,11 @@ fun SignInScreen(
     val context = LocalContext.current
 
     // Animation states
-    val infiniteTransition = rememberInfiniteTransition(label = "signin_animations")
-    
-    val backgroundPulse by infiniteTransition.animateFloat(
-        initialValue = 0.8f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(3000, easing = EaseInOutSine),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "background_pulse"
-    )
-    
     val contentAlpha by animateFloatAsState(
         targetValue = if (startAnimation) 1f else 0f,
         animationSpec = tween(
-            durationMillis = 600,
-            delayMillis = 100
+            durationMillis = 1200,
+            easing = FastOutSlowInEasing
         ),
         label = "content_alpha"
     )
@@ -97,30 +86,29 @@ fun SignInScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(
-                brush = Brush.radialGradient(
+                brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFFF8FAFC).copy(alpha = backgroundPulse),
-                        Color(0xFFF1F5F9),
-                        Color(0xFFE2E8F0),
-                        Color(0xFFCBD5E1)
-                    ),
-                    radius = 1000f
+                        Color(0xFF1A1A2E),
+                        Color(0xFF16213E),
+                        Color(0xFF0F172A)
+                    )
                 )
             )
     ) {
-        // Subtle background particles effect
-        repeat(5) { index ->
-            Box(
-                modifier = Modifier
-                    .offset(
-                        x = (50 * (index - 2)).dp,
-                        y = (-100 + 40 * index).dp
-                    )
-                    .size(4.dp)
-                    .background(
-                        Color(0xFF6366F1).copy(alpha = 0.1f),
-                        RoundedCornerShape(2.dp)
-                    )
+        // Background decoration matching WatchlistScreen
+        androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
+            val centerX = size.width / 2
+            val centerY = size.height / 3
+            
+            drawCircle(
+                color = Color.White.copy(alpha = 0.02f),
+                radius = size.width * 0.6f,
+                center = Offset(centerX - size.width * 0.3f, centerY - 100.dp.toPx())
+            )
+            drawCircle(
+                color = Color.White.copy(alpha = 0.015f),
+                radius = size.width * 0.8f,
+                center = Offset(centerX + size.width * 0.2f, centerY + 200.dp.toPx())
             )
         }
 
@@ -130,15 +118,16 @@ fun SignInScreen(
                 .padding(horizontal = 24.dp)
                 .scale(contentScale)
                 .alpha(contentAlpha),
-            verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            Spacer(modifier = Modifier.height(80.dp))
+            
             // Enhanced Title
             Text(
                 text = "Welcome Back",
                 fontSize = 42.sp,
                 fontWeight = FontWeight.Black,
-                color = Color(0xFF0F172A),
+                color = Color.White,
                 textAlign = TextAlign.Center,
                 letterSpacing = (-1).sp,
                 lineHeight = 48.sp
@@ -150,7 +139,7 @@ fun SignInScreen(
                 text = "Sign in to your account",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color(0xFF64748B),
+                color = Color(0xFFE2E8F0),
                 textAlign = TextAlign.Center,
                 lineHeight = 26.sp,
                 letterSpacing = 0.5.sp
@@ -160,7 +149,7 @@ fun SignInScreen(
 
             // Enhanced Form Fields
             Column(
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // Enhanced Email Field
                 OutlinedTextField(
@@ -169,7 +158,7 @@ fun SignInScreen(
                     label = { 
                         Text(
                             "Email",
-                            color = Color(0xFF64748B),
+                            color = Color(0xFFE2E8F0),
                             fontWeight = FontWeight.Medium
                         ) 
                     },
@@ -180,7 +169,9 @@ fun SignInScreen(
                             tint = Color(0xFF6366F1)
                         )
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp), // Fixed height
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Email,
                         imeAction = ImeAction.Next
@@ -189,14 +180,16 @@ fun SignInScreen(
                         onNext = { focusManager.moveFocus(FocusDirection.Down) }
                     ),
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(20.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Color(0xFF6366F1),
-                        unfocusedBorderColor = Color(0xFFE2E8F0),
-                        focusedContainerColor = Color(0xFFFAFAFA),
-                        unfocusedContainerColor = Color(0xFFFAFAFA),
+                        unfocusedBorderColor = Color(0xFF334155),
+                        focusedContainerColor = Color(0xFF1E293B).copy(alpha = 0.95f),
+                        unfocusedContainerColor = Color(0xFF1E293B).copy(alpha = 0.95f),
                         focusedLabelColor = Color(0xFF6366F1),
-                        unfocusedLabelColor = Color(0xFF64748B)
+                        unfocusedLabelColor = Color(0xFFE2E8F0),
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
                     )
                 )
 
@@ -207,7 +200,7 @@ fun SignInScreen(
                     label = { 
                         Text(
                             "Password",
-                            color = Color(0xFF64748B),
+                            color = Color(0xFFE2E8F0),
                             fontWeight = FontWeight.Medium
                         ) 
                     },
@@ -221,7 +214,9 @@ fun SignInScreen(
                             )
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp), // Fixed height
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Password,
                         imeAction = ImeAction.Done
@@ -244,19 +239,21 @@ fun SignInScreen(
                         }
                     ),
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(20.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Color(0xFF6366F1),
-                        unfocusedBorderColor = Color(0xFFE2E8F0),
-                        focusedContainerColor = Color(0xFFFAFAFA),
-                        unfocusedContainerColor = Color(0xFFFAFAFA),
+                        unfocusedBorderColor = Color(0xFF334155),
+                        focusedContainerColor = Color(0xFF1E293B).copy(alpha = 0.95f),
+                        unfocusedContainerColor = Color(0xFF1E293B).copy(alpha = 0.95f),
                         focusedLabelColor = Color(0xFF6366F1),
-                        unfocusedLabelColor = Color(0xFF64748B)
+                        unfocusedLabelColor = Color(0xFFE2E8F0),
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
                     )
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Enhanced Error Message
             AnimatedVisibility(
@@ -268,25 +265,40 @@ fun SignInScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .shadow(
-                            elevation = 2.dp,
-                            shape = RoundedCornerShape(16.dp),
-                            ambientColor = Color(0xFFEF4444).copy(alpha = 0.1f)
+                            elevation = 4.dp,
+                            shape = RoundedCornerShape(20.dp)
                         ),
                     colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFFFEF2F2)
+                        containerColor = Color(0xFF1E293B).copy(alpha = 0.95f)
                     ),
-                    shape = RoundedCornerShape(16.dp)
+                    shape = RoundedCornerShape(20.dp)
                 ) {
-                    Text(
-                        text = errorMessage,
-                        modifier = Modifier.padding(16.dp),
-                        color = Color(0xFFDC2626),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                brush = Brush.linearGradient(
+                                    colors = listOf(
+                                        Color(0xFFEF4444).copy(alpha = 0.08f),
+                                        Color(0xFFEF4444).copy(alpha = 0.02f)
+                                    ),
+                                    start = Offset(0f, 0f),
+                                    end = Offset(1000f, 1000f)
+                                )
+                            )
+                    ) {
+                        Text(
+                            text = errorMessage,
+                            modifier = Modifier.padding(16.dp),
+                            color = Color(0xFFEF4444),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
-                Spacer(modifier = Modifier.height(16.dp))
             }
+
+            Spacer(modifier = Modifier.height(if (errorMessage.isNotEmpty()) 16.dp else 8.dp))
 
             // Enhanced Sign In Button
             Button(
@@ -305,59 +317,28 @@ fun SignInScreen(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp)
-                    .shadow(
-                        elevation = 3.dp,
-                        shape = RoundedCornerShape(28.dp),
-                        ambientColor = Color(0xFF6366F1).copy(alpha = 0.15f),
-                        spotColor = Color(0xFF8B5CF6).copy(alpha = 0.15f)
-                    ),
+                    .height(56.dp),
                 enabled = !isLoading && email.isNotBlank() && password.isNotBlank(),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.Transparent,
-                    disabledContainerColor = Color.Transparent
+                    containerColor = Color(0xFF6366F1),
+                    disabledContainerColor = Color(0xFF334155)
                 ),
                 shape = RoundedCornerShape(28.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            brush = if (isLoading || email.isBlank() || password.isBlank()) {
-                                Brush.linearGradient(
-                                    colors = listOf(
-                                        Color(0xFFCBD5E1),
-                                        Color(0xFFA1A1AA)
-                                    )
-                                )
-                            } else {
-                                Brush.linearGradient(
-                                    colors = listOf(
-                                        Color(0xFF6366F1),
-                                        Color(0xFF8B5CF6),
-                                        Color(0xFFA855F7)
-                                    )
-                                )
-                            },
-                            shape = RoundedCornerShape(28.dp)
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = Color.White,
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Text(
-                            text = "Sign In",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            letterSpacing = 0.5.sp
-                        )
-                    }
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text(
+                        text = "Sign In",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        letterSpacing = 0.5.sp
+                    )
                 }
             }
 
@@ -384,7 +365,7 @@ fun SignInScreen(
                 Text(
                     text = "Don't have an account? ",
                     fontSize = 16.sp,
-                    color = Color(0xFF64748B)
+                    color = Color(0xFF94A3B8)
                 )
                 TextButton(
                     onClick = onNavigateToSignUp
@@ -397,6 +378,8 @@ fun SignInScreen(
                     )
                 }
             }
+            
+            Spacer(modifier = Modifier.height(40.dp))
         }
     }
 }

@@ -68,15 +68,16 @@ fun FloatingNavBar(
 
     val haptic = LocalHapticFeedback.current
 
-    // Animation for the entire navbar
+    // Entrance animation
     var isVisible by remember { mutableStateOf(false) }
     
     LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(50)
         isVisible = true
     }
 
     val navBarOffset by animateFloatAsState(
-        targetValue = if (isVisible) 0f else 100f,
+        targetValue = if (isVisible) 0f else 40f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessMedium
@@ -84,85 +85,54 @@ fun FloatingNavBar(
         label = "navbar_offset"
     )
 
-    val navBarScale by animateFloatAsState(
-        targetValue = if (isVisible) 1f else 0.8f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "navbar_scale"
+    val navBarAlpha by animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = tween(400, easing = FastOutSlowInEasing),
+        label = "navbar_alpha"
     )
 
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 16.dp)
-            .offset(y = navBarOffset.dp)
+            .padding(horizontal = 42.dp, vertical = 14.dp)
             .graphicsLayer(
-                scaleX = navBarScale,
-                scaleY = navBarScale
-            )
-            .semantics {
-                contentDescription = "Main navigation bar with ${navItems.size} options"
-            },
+                translationY = navBarOffset,
+                alpha = navBarAlpha
+            ),
         contentAlignment = Alignment.Center
     ) {
-        // Enhanced glass morphism background with constrained width
-        Box(
+        // Slightly larger container for better accessibility
+        Row(
             modifier = Modifier
-                .wrapContentSize()
                 .shadow(
-                    elevation = 24.dp,
-                    shape = RoundedCornerShape(32.dp),
-                    ambientColor = Color.Black.copy(alpha = 0.1f),
-                    spotColor = Color.Black.copy(alpha = 0.2f)
+                    elevation = 16.dp,
+                    shape = RoundedCornerShape(26.dp),
+                    ambientColor = Color(0xFF6366F1).copy(alpha = 0.15f),
+                    spotColor = Color(0xFF8B5CF6).copy(alpha = 0.2f)
                 )
                 .background(
                     brush = Brush.linearGradient(
                         colors = listOf(
-                            Color(0xFF1E293B).copy(alpha = 0.95f),
-                            Color(0xFF334155).copy(alpha = 0.9f)
-                        ),
-                        start = androidx.compose.ui.geometry.Offset(0f, 0f),
-                        end = androidx.compose.ui.geometry.Offset(1000f, 1000f)
-                    ),
-                    shape = RoundedCornerShape(32.dp)
-                )
-                .clip(RoundedCornerShape(32.dp))
-        ) {
-            // Subtle glass effect overlay
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .background(
-                        brush = Brush.linearGradient(
-                            colors = listOf(
-                                Color.White.copy(alpha = 0.1f),
-                                Color.White.copy(alpha = 0.02f)
-                            ),
-                            start = androidx.compose.ui.geometry.Offset(0f, 0f),
-                            end = androidx.compose.ui.geometry.Offset(500f, 500f)
+                            Color(0xFF1E293B).copy(alpha = 0.92f),
+                            Color(0xFF0F172A).copy(alpha = 0.95f)
                         )
-                    )
-            )
-
-            // Navigation items
-            Row(
-                modifier = Modifier
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(24.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                navItems.forEach { item ->
-                    NavBarItem(
-                        item = item,
-                        isSelected = currentRoute == item.route,
-                        onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onNavigate(item.route)
-                        }
-                    )
-                }
+                    ),
+                    shape = RoundedCornerShape(26.dp)
+                )
+                .clip(RoundedCornerShape(26.dp))
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(20.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            navItems.forEachIndexed { index, item ->
+                NavBarItem(
+                    item = item,
+                    isSelected = currentRoute == item.route,
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onNavigate(item.route)
+                    }
+                )
             }
         }
     }
@@ -175,18 +145,8 @@ fun NavBarItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Smooth animations for selection state
-    val backgroundAlpha by animateFloatAsState(
-        targetValue = if (isSelected) 1f else 0f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "background_alpha"
-    )
-
     val iconScale by animateFloatAsState(
-        targetValue = if (isSelected) 1.1f else 1f,
+        targetValue = if (isSelected) 1.15f else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessHigh
@@ -196,86 +156,63 @@ fun NavBarItem(
 
     val contentColor by animateColorAsState(
         targetValue = if (isSelected) Color.White else Color(0xFF94A3B8),
-        animationSpec = tween(durationMillis = 200),
+        animationSpec = tween(200, easing = FastOutSlowInEasing),
         label = "content_color"
     )
 
-    Column(
+    val backgroundAlpha by animateFloatAsState(
+        targetValue = if (isSelected) 1f else 0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessHigh
+        ),
+        label = "background_alpha"
+    )
+
+    Box(
         modifier = modifier
-            .clip(RoundedCornerShape(20.dp))
+            .size(44.dp) // Increased from 40.dp for better touch target
+            .clip(CircleShape)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null
             ) { onClick() }
-            .padding(horizontal = 8.dp, vertical = 8.dp)
             .semantics {
                 contentDescription = item.contentDescription
-                if (isSelected) {
-                    stateDescription = "Selected"
-                }
                 role = Role.Tab
+                if (isSelected) stateDescription = "Selected"
             },
-        horizontalAlignment = Alignment.CenterHorizontally
+        contentAlignment = Alignment.Center
     ) {
-        // Selection background indicator
-        Box(
-            modifier = Modifier
-                .size(40.dp) // Slightly smaller for better proportion
-                .background(
-                    brush = Brush.linearGradient(
-                        colors = listOf(
-                            Color(0xFF6366F1).copy(alpha = backgroundAlpha),
-                            Color(0xFF8B5CF6).copy(alpha = backgroundAlpha),
-                            Color(0xFFA855F7).copy(alpha = backgroundAlpha)
-                        )
-                    ),
-                    shape = RoundedCornerShape(20.dp)
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
-                contentDescription = null, // Handled by parent semantics
-                tint = contentColor,
+        // Background indicator
+        if (isSelected) {
+            Box(
                 modifier = Modifier
-                    .size(20.dp)
-                    .graphicsLayer(
-                        scaleX = iconScale,
-                        scaleY = iconScale
+                    .size(36.dp) // Increased from 32.dp proportionally
+                    .graphicsLayer(alpha = backgroundAlpha)
+                    .background(
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                Color(0xFF6366F1),
+                                Color(0xFF8B5CF6)
+                            )
+                        ),
+                        shape = CircleShape
                     )
             )
         }
 
-        // Animated label - only show for selected item
-        AnimatedVisibility(
-            visible = isSelected,
-            enter = slideInVertically(
-                initialOffsetY = { it / 2 },
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessMedium
+        // Icon
+        Icon(
+            imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
+            contentDescription = null,
+            tint = contentColor,
+            modifier = Modifier
+                .size(20.dp) // Increased from 18.dp for better visibility
+                .graphicsLayer(
+                    scaleX = iconScale,
+                    scaleY = iconScale
                 )
-            ) + fadeIn(
-                animationSpec = tween(300)
-            ),
-            exit = slideOutVertically(
-                targetOffsetY = { it / 2 },
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessMedium
-                )
-            ) + fadeOut(
-                animationSpec = tween(200)
-            )
-        ) {
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = item.label,
-                style = MaterialTheme.typography.labelSmall,
-                color = contentColor,
-                fontWeight = FontWeight.Bold,
-                fontSize = 10.sp
-            )
-        }
+        )
     }
 }

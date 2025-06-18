@@ -7,14 +7,17 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -51,7 +54,7 @@ fun OnboardingScreen(
         OnboardingStep(
             title = "Smart Analytics",
             subtitle = "Get real-time insights and\ndata-driven recommendations.",
-            motifResource = R.drawable.onboarding_motif_2 // Make sure to add this drawable
+            motifResource = R.drawable.onboarding_motif_2
         )
     )
     
@@ -65,26 +68,12 @@ fun OnboardingScreen(
         currentStep = (currentStep + 1) % onboardingSteps.size
     }
     
-    // Initialize infinite transition for background effects
-    val infiniteTransition = rememberInfiniteTransition(label = "onboarding_animations")
-    
-    // Background pulse animation
-    val backgroundPulse by infiniteTransition.animateFloat(
-        initialValue = 0.8f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(3000, easing = EaseInOutSine),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "background_pulse"
-    )
-    
     // Content animations with step transition
     val contentAlpha by animateFloatAsState(
         targetValue = if (startAnimation) 1f else 0f,
         animationSpec = tween(
-            durationMillis = 600,
-            delayMillis = 100
+            durationMillis = 1200,
+            easing = FastOutSlowInEasing
         ),
         label = "content_alpha"
     )
@@ -119,6 +108,7 @@ fun OnboardingScreen(
     
     // Start animation
     LaunchedEffect(Unit) {
+        delay(100)
         startAnimation = true
     }
 
@@ -126,44 +116,49 @@ fun OnboardingScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(
-                brush = Brush.radialGradient(
+                brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFFF8FAFC).copy(alpha = backgroundPulse),
-                        Color(0xFFF1F5F9),
-                        Color(0xFFE2E8F0),
-                        Color(0xFFCBD5E1)
-                    ),
-                    radius = 1000f
+                        Color(0xFF1A1A2E),
+                        Color(0xFF16213E),
+                        Color(0xFF0F172A)
+                    )
                 )
             )
     ) {
-        // Subtle background particles effect
-        repeat(5) { index ->
-            Box(
-                modifier = Modifier
-                    .offset(
-                        x = (50 * (index - 2)).dp,
-                        y = (-100 + 40 * index).dp
-                    )
-                    .size(4.dp)
-                    .background(
-                        Color(0xFF6366F1).copy(alpha = 0.1f),
-                        RoundedCornerShape(2.dp)
-                    )
+        // Background decoration - consistent with WatchlistScreen
+        androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
+            val centerX = size.width / 2
+            val centerY = size.height / 3
+            
+            drawCircle(
+                color = Color.White.copy(alpha = 0.02f),
+                radius = size.width * 0.6f,
+                center = Offset(centerX - size.width * 0.3f, centerY - 100.dp.toPx())
+            )
+            drawCircle(
+                color = Color.White.copy(alpha = 0.015f),
+                radius = size.width * 0.8f,
+                center = Offset(centerX + size.width * 0.2f, centerY + 200.dp.toPx())
             )
         }
         
-        // Skip button with enhanced styling
-        TextButton(
-            onClick = onSkip,
+        // Skip button with enhanced styling - consistent with WatchlistScreen styling
+        Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(16.dp)
                 .alpha(contentAlpha)
+                .background(
+                    color = Color(0xFF334155).copy(alpha = 0.8f),
+                    shape = RoundedCornerShape(20.dp)
+                )
+                .clip(RoundedCornerShape(20.dp))
+                .clickable { onSkip() }
+                .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
             Text(
                 text = "Skip",
-                color = Color(0xFF6366F1),
+                color = Color.White,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium
             )
@@ -179,34 +174,56 @@ fun OnboardingScreen(
         ) {
             Spacer(modifier = Modifier.height(120.dp))
 
-            // Enhanced central motif image container with transition
-            Box(
+            // Enhanced central motif image container with glassmorphism
+            Card(
                 modifier = Modifier
                     .size(300.dp)
                     .padding(16.dp),
-                contentAlignment = Alignment.Center
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFF1E293B).copy(alpha = 0.95f)
+                ),
+                shape = RoundedCornerShape(30.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
             ) {
-                Image(
-                    painter = painterResource(id = onboardingSteps[currentStep].motifResource),
-                    contentDescription = "Onboarding illustration step ${currentStep + 1}",
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp)
-                        .alpha(imageAlpha)
-                        .scale(imageScale),
-                    contentScale = ContentScale.Fit
-                )
+                Box {
+                    // Glassmorphism background
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                brush = Brush.linearGradient(
+                                    colors = listOf(
+                                        Color.White.copy(alpha = 0.08f),
+                                        Color.White.copy(alpha = 0.02f)
+                                    ),
+                                    start = Offset(0f, 0f),
+                                    end = Offset(1000f, 1000f)
+                                )
+                            )
+                    )
+                    
+                    Image(
+                        painter = painterResource(id = onboardingSteps[currentStep].motifResource),
+                        contentDescription = "Onboarding illustration step ${currentStep + 1}",
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(32.dp)
+                            .alpha(imageAlpha)
+                            .scale(imageScale),
+                        contentScale = ContentScale.Fit
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(40.dp))
 
-            // Enhanced title with transition
+            // Enhanced title with dark theme colors
             Text(
                 text = onboardingSteps[currentStep].title,
                 fontSize = 42.sp,
                 fontWeight = FontWeight.Black,
                 fontFamily = FontFamily.Default,
-                color = Color(0xFF0F172A),
+                color = Color.White,
                 textAlign = TextAlign.Center,
                 letterSpacing = (-1).sp,
                 lineHeight = 48.sp
@@ -214,12 +231,12 @@ fun OnboardingScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Enhanced subtitle with transition
+            // Enhanced subtitle with consistent color scheme
             Text(
                 text = onboardingSteps[currentStep].subtitle,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color(0xFF64748B),
+                color = Color(0xFF94A3B8), // Consistent with WatchlistScreen
                 textAlign = TextAlign.Center,
                 lineHeight = 26.sp,
                 letterSpacing = 0.5.sp
@@ -227,7 +244,7 @@ fun OnboardingScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // Enhanced page indicator dots with tap functionality and better styling
+            // Enhanced page indicator dots with glassmorphism
             Row(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.padding(bottom = 40.dp)
@@ -247,21 +264,12 @@ fun OnboardingScreen(
                         targetValue = if (isActive) {
                             Color(0xFF6366F1)
                         } else {
-                            Color(0xFFCBD5E1)
+                            Color(0xFF334155).copy(alpha = 0.6f)
                         },
                         animationSpec = tween(300),
                         label = "dot_color"
                     )
                     
-                    val animatedElevation by animateDpAsState(
-                        targetValue = if (isActive) 6.dp else 2.dp,
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioMediumBouncy
-                        ),
-                        label = "dot_elevation"
-                    )
-                    
-                    // Alternative with scale feedback:
                     var isPressed by remember { mutableStateOf(false) }
                     val scale by animateFloatAsState(
                         targetValue = if (isPressed) 0.9f else 1f,
@@ -278,11 +286,6 @@ fun OnboardingScreen(
                                 color = animatedColor,
                                 shape = RoundedCornerShape(4.dp)
                             )
-                            .shadow(
-                                elevation = animatedElevation,
-                                shape = RoundedCornerShape(4.dp),
-                                ambientColor = Color(0xFF6366F1).copy(alpha = 0.3f)
-                            )
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null
@@ -294,29 +297,24 @@ fun OnboardingScreen(
                 }
             }
 
-            // Enhanced buttons with gradient and shadow effects
+            // Enhanced buttons with glassmorphism and consistent design
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 40.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp) // Reduced from 16.dp to 8.dp
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Enhanced Sign up button
-                Button(
-                    onClick = onSignUp,
+                // Enhanced Sign up button with glassmorphism
+                Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp)
-                        .shadow(
-                            elevation = 8.dp,
-                            shape = RoundedCornerShape(28.dp),
-                            ambientColor = Color(0xFF6366F1).copy(alpha = 0.4f),
-                            spotColor = Color(0xFF8B5CF6).copy(alpha = 0.4f)
-                        ),
-                    colors = ButtonDefaults.buttonColors(
+                        .clickable { onSignUp() },
+                    colors = CardDefaults.cardColors(
                         containerColor = Color.Transparent
                     ),
-                    shape = RoundedCornerShape(28.dp)
+                    shape = RoundedCornerShape(28.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
                 ) {
                     Box(
                         modifier = Modifier
@@ -333,6 +331,22 @@ fun OnboardingScreen(
                             ),
                         contentAlignment = Alignment.Center
                     ) {
+                        // Glassmorphism overlay
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    brush = Brush.linearGradient(
+                                        colors = listOf(
+                                            Color.White.copy(alpha = 0.1f),
+                                            Color.White.copy(alpha = 0.02f)
+                                        ),
+                                        start = Offset(0f, 0f),
+                                        end = Offset(1000f, 1000f)
+                                    )
+                                )
+                        )
+                        
                         Text(
                             text = "Sign up",
                             fontSize = 16.sp,
@@ -343,45 +357,49 @@ fun OnboardingScreen(
                     }
                 }
 
-                // Enhanced Sign in button with different color scheme
-                Button(
-                    onClick = onSignIn,
+                // Enhanced Sign in button with glassmorphism
+                Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp)
-                        .shadow(
-                            elevation = 8.dp,
-                            shape = RoundedCornerShape(28.dp),
-                            ambientColor = Color(0xFF64748B).copy(alpha = 0.4f),
-                            spotColor = Color(0xFF475569).copy(alpha = 0.4f)
-                        ),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.Transparent
+                        .clickable { onSignIn() },
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color(0xFF1E293B).copy(alpha = 0.95f)
                     ),
-                    shape = RoundedCornerShape(28.dp)
+                    shape = RoundedCornerShape(28.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
                 ) {
                     Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                brush = Brush.linearGradient(
-                                    colors = listOf(
-                                        Color(0xFF64748B),
-                                        Color(0xFF475569),
-                                        Color(0xFF334155)
-                                    )
-                                ),
-                                shape = RoundedCornerShape(28.dp)
-                            ),
-                        contentAlignment = Alignment.Center
+                        modifier = Modifier.fillMaxSize()
                     ) {
-                        Text(
-                            text = "Sign in",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            letterSpacing = 0.5.sp
+                        // Glassmorphism background
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    brush = Brush.linearGradient(
+                                        colors = listOf(
+                                            Color.White.copy(alpha = 0.08f),
+                                            Color.White.copy(alpha = 0.02f)
+                                        ),
+                                        start = Offset(0f, 0f),
+                                        end = Offset(1000f, 1000f)
+                                    )
+                                )
                         )
+                        
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Sign in",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                letterSpacing = 0.5.sp
+                            )
+                        }
                     }
                 }
             }

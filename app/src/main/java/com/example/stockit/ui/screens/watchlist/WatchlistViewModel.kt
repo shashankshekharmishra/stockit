@@ -29,11 +29,23 @@ class WatchlistViewModel @Inject constructor(
     val uiState: StateFlow<WatchlistUiState> = _uiState.asStateFlow()
 
     init {
-        // Check authentication status
+        // Add debug logging
         viewModelScope.launch {
-            authManager.isLoggedInState.collect { isLoggedIn ->
-                _uiState.update { it.copy(isAuthenticated = isLoggedIn) }
-                if (isLoggedIn) {
+            val hasToken = authManager.getAccessToken().isNotEmpty()
+            val isLoggedIn = authManager.isLoggedIn()
+            println("DEBUG: AuthManager - hasToken: $hasToken, isLoggedIn: $isLoggedIn")
+            println("DEBUG: Access token: ${authManager.getAccessToken().take(10)}...")
+            
+            _uiState.update { it.copy(isAuthenticated = isLoggedIn) }
+            
+            if (isLoggedIn) {
+                loadWatchlist()
+            }
+            
+            authManager.isLoggedInState.collect { authState ->
+                println("DEBUG: Auth state changed to: $authState")
+                _uiState.update { it.copy(isAuthenticated = authState) }
+                if (authState) {
                     loadWatchlist()
                 } else {
                     _uiState.update { it.copy(watchlistStocks = emptyList()) }

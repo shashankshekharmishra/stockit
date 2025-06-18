@@ -16,7 +16,8 @@ class AuthManager @Inject constructor(
     private val sharedPrefs: SharedPreferences = 
         context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE)
     
-    private val _isLoggedIn = MutableStateFlow(isLoggedIn())
+    // Initialize with current login state
+    private val _isLoggedIn = MutableStateFlow(checkCurrentLoginState())
     val isLoggedInState: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
     
     companion object {
@@ -30,10 +31,14 @@ class AuthManager @Inject constructor(
         }
     }
     
-    fun isLoggedIn(): Boolean {
+    private fun checkCurrentLoginState(): Boolean {
         val hasToken = getAccessToken().isNotEmpty()
         val isValid = sharedPrefs.getBoolean("is_logged_in", false)
         return hasToken && isValid
+    }
+    
+    fun isLoggedIn(): Boolean {
+        return checkCurrentLoginState()
     }
     
     fun getAccessToken(): String {
@@ -69,6 +74,7 @@ class AuthManager @Inject constructor(
         _isLoggedIn.value = false
     }
 
+    // Make sure this method updates the StateFlow
     fun saveUserData(
         accessToken: String,
         refreshToken: String,
@@ -89,12 +95,9 @@ class AuthManager @Inject constructor(
         _isLoggedIn.value = true
     }
 
-    fun updateLoginStatus(isLoggedIn: Boolean) {
-        with(sharedPrefs.edit()) {
-            putBoolean("is_logged_in", isLoggedIn)
-            apply()
-        }
-        _isLoggedIn.value = isLoggedIn
+    // Add a method to manually refresh the login state
+    fun refreshLoginState() {
+        _isLoggedIn.value = checkCurrentLoginState()
     }
     
     fun isTokenExpired(): Boolean {
