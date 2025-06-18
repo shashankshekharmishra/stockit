@@ -1,9 +1,11 @@
 package com.example.stockit.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
 import androidx.navigation.NavType
 import com.example.stockit.ui.screens.splash.SplashScreen
@@ -15,11 +17,20 @@ import com.example.stockit.ui.screens.home.HomeScreen
 import com.example.stockit.ui.screens.portfolio.PortfolioScreen
 import com.example.stockit.ui.screens.stock.StockDetailScreen
 import com.example.stockit.ui.screens.profile.ProfileScreen
+import com.example.stockit.ui.screens.watchlist.WatchlistScreen
+import com.example.stockit.ui.components.MainScreenWrapper
 import com.example.stockit.data.model.Stock
 import com.example.stockit.utils.AuthManager
 
 @Composable
 fun Navigation(navController: NavHostController) {
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+    
+    // Define which routes should show the floating nav bar
+    val routesWithNavBar = setOf("home", "watchlist", "profile")
+    val shouldShowNavBar = currentRoute in routesWithNavBar
+
     NavHost(navController = navController, startDestination = "splash") {
         composable("splash") { 
             SplashScreen(
@@ -51,12 +62,54 @@ fun Navigation(navController: NavHostController) {
             ) 
         }
         composable("home") { 
-            HomeScreen(
-                onSearchClick = { /* TODO: Navigate to search */ },
-                onStockClick = { stockSymbol -> 
-                    navController.navigate("stock_detail/$stockSymbol")
+            if (shouldShowNavBar) {
+                MainScreenWrapper(
+                    currentRoute = "home",
+                    onNavigate = { route ->
+                        if (route != "home") {
+                            navController.navigate(route) {
+                                popUpTo("home") { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    }
+                ) {
+                    HomeScreen(
+                        onSearchClick = { /* TODO: Navigate to search */ },
+                        onStockClick = { stockSymbol -> 
+                            navController.navigate("stock_detail/$stockSymbol")
+                        }
+                    )
                 }
-            ) 
+            } else {
+                HomeScreen(
+                    onSearchClick = { /* TODO: Navigate to search */ },
+                    onStockClick = { stockSymbol -> 
+                        navController.navigate("stock_detail/$stockSymbol")
+                    }
+                )
+            }
+        }
+        composable("watchlist") { 
+            if (shouldShowNavBar) {
+                MainScreenWrapper(
+                    currentRoute = "watchlist",
+                    onNavigate = { route ->
+                        if (route != "watchlist") {
+                            navController.navigate(route) {
+                                popUpTo("home") { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    }
+                ) {
+                    WatchlistScreen()
+                }
+            } else {
+                WatchlistScreen()
+            }
         }
         composable("portfolio") { PortfolioScreen() }
         composable(
@@ -69,6 +122,25 @@ fun Navigation(navController: NavHostController) {
                 onBackClick = { navController.popBackStack() }
             )
         }
-        composable("profile") { ProfileScreen() }
+        composable("profile") { 
+            if (shouldShowNavBar) {
+                MainScreenWrapper(
+                    currentRoute = "profile",
+                    onNavigate = { route ->
+                        if (route != "profile") {
+                            navController.navigate(route) {
+                                popUpTo("home") { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    }
+                ) {
+                    ProfileScreen()
+                }
+            } else {
+                ProfileScreen()
+            }
+        }
     }
 }

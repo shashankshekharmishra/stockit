@@ -8,6 +8,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.TrendingDown
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -24,6 +27,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel // Add this import
 import kotlinx.coroutines.delay
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.geometry.Offset
@@ -41,7 +45,7 @@ import kotlin.math.*
 fun StockDetailScreen(
     stockSymbol: String,
     onBackClick: () -> Unit,
-    viewModel: StockDetailViewModel = viewModel()
+    viewModel: StockDetailViewModel = hiltViewModel() // Now this will work
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -77,13 +81,14 @@ fun StockDetailScreen(
         label = "cards_scale"
     )
 
-    // Initialize authentication
+    // Initialize data loading
     LaunchedEffect(Unit) {
-        viewModel.initializeAuth(context)
         delay(100)
         startAnimation = true
         viewModel.loadStockData(stockSymbol)
         viewModel.debugSpecificEndpoint(stockSymbol, "1M")
+        // Check watchlist status
+        viewModel.checkWatchlistStatus(stockSymbol)
     }
     
     LaunchedEffect(selectedTimeFrame) {
@@ -162,7 +167,7 @@ fun StockDetailScreen(
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFF1A1A2E), // Darker for better contrast
+                        Color(0xFF1A1A2E),
                         Color(0xFF16213E),
                         Color(0xFF0F172A)
                     )
@@ -199,12 +204,21 @@ fun StockDetailScreen(
                 },
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // Custom Header
+            // Custom Header with Watchlist Integration
             item {
                 AccessibleHeader(
                     stockSymbol = stockSymbol,
                     stockData = uiState.stockData,
                     onBackClick = onBackClick,
+                    onWatchlistClick = {
+                        if (uiState.isInWatchlist) {
+                            viewModel.removeFromWatchlist(stockSymbol)
+                        } else {
+                            viewModel.addToWatchlist(stockSymbol)
+                        }
+                    },
+                    isInWatchlist = uiState.isInWatchlist,
+                    isAuthenticated = uiState.isAuthenticated,
                     modifier = Modifier.offset(y = headerOffset.dp)
                 )
             }
@@ -297,6 +311,9 @@ fun AccessibleHeader(
     stockSymbol: String,
     stockData: StockData?,
     onBackClick: () -> Unit,
+    onWatchlistClick: () -> Unit,
+    isInWatchlist: Boolean,
+    isAuthenticated: Boolean,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -314,7 +331,7 @@ fun AccessibleHeader(
                 .fillMaxWidth()
                 .height(120.dp)
                 .background(
-                    color = Color(0xFF1E293B).copy(alpha = 0.9f), // More opaque for better contrast
+                    color = Color(0xFF1E293B).copy(alpha = 0.9f),
                     shape = RoundedCornerShape(28.dp)
                 )
                 .clip(RoundedCornerShape(28.dp))
@@ -348,7 +365,7 @@ fun AccessibleHeader(
                 modifier = Modifier
                     .size(48.dp)
                     .background(
-                        color = Color(0xFF334155).copy(alpha = 0.8f), // Better contrast
+                        color = Color(0xFF334155).copy(alpha = 0.8f),
                         shape = CircleShape
                     )
                     .semantics {
@@ -357,8 +374,8 @@ fun AccessibleHeader(
                     }
             ) {
                 Icon(
-                    Icons.Default.ArrowBack,
-                    contentDescription = null, // Handled by parent semantics
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = null,
                     tint = Color.White,
                     modifier = Modifier.size(24.dp)
                 )
@@ -377,14 +394,14 @@ fun AccessibleHeader(
                     text = stockSymbol,
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White, // Full white for maximum contrast
+                    color = Color.White,
                     fontSize = 24.sp
                 )
                 stockData?.name?.let { name ->
                     Text(
                         text = name,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color(0xFFE2E8F0), // Light gray with good contrast
+                        color = Color(0xFFE2E8F0),
                         fontSize = 14.sp,
                         modifier = Modifier.semantics {
                             contentDescription = "Company name: $name"
@@ -394,28 +411,39 @@ fun AccessibleHeader(
             }
             
             Row {
-                IconButton(
-                    onClick = { /* TODO: Add to watchlist */ },
-                    modifier = Modifier
-                        .size(48.dp)
-                        .background(
-                            color = Color(0xFF334155).copy(alpha = 0.8f),
-                            shape = CircleShape
+                // Watchlist button (only show if authenticated)
+                if (isAuthenticated) {
+                    IconButton(
+                        onClick = onWatchlistClick,
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(
+                                color = if (isInWatchlist) {
+                                    Color(0xFF10B981).copy(alpha = 0.2f)
+                                } else {
+                                    Color(0xFF334155).copy(alpha = 0.8f)
+                                },
+                                shape = CircleShape
+                            )
+                            .semantics {
+                                contentDescription = if (isInWatchlist) {
+                                    "Remove $stockSymbol from watchlist"
+                                } else {
+                                    "Add $stockSymbol to watchlist"
+                                }
+                                role = Role.Button
+                            }
+                    ) {
+                        Icon(
+                            if (isInWatchlist) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                            contentDescription = null,
+                            tint = if (isInWatchlist) Color(0xFF10B981) else Color.White,
+                            modifier = Modifier.size(24.dp)
                         )
-                        .semantics {
-                            contentDescription = "Add $stockSymbol to favorites"
-                            role = Role.Button
-                        }
-                ) {
-                    Icon(
-                        Icons.Default.FavoriteBorder,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(24.dp)
-                    )
+                    }
+                    
+                    Spacer(modifier = Modifier.width(8.dp))
                 }
-                
-                Spacer(modifier = Modifier.width(8.dp))
                 
                 IconButton(
                     onClick = { /* TODO: Share */ },
@@ -575,7 +603,7 @@ fun AccessiblePriceCard(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = if (isPositive) Icons.Default.TrendingUp else Icons.Default.TrendingDown,
+                            imageVector = if (isPositive) Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
                             contentDescription = null,
                             tint = changeColor,
                             modifier = Modifier.size(18.dp)
@@ -743,7 +771,7 @@ fun AccessibleStockChart(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Icon(
-                    Icons.Default.TrendingUp,
+                    Icons.AutoMirrored.Filled.TrendingUp,
                     contentDescription = null,
                     modifier = Modifier.size(48.dp),
                     tint = Color(0xFF64748B)
@@ -1092,8 +1120,8 @@ fun AccessibleTradingButtons(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    Icons.Default.TrendingDown,
-                    contentDescription = null,
+                    Icons.AutoMirrored.Filled.TrendingDown,
+                    contentDescription = "Sell $stockSymbol stock",
                     tint = Color.White,
                     modifier = Modifier.size(20.dp)
                 )
@@ -1126,8 +1154,8 @@ fun AccessibleTradingButtons(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    Icons.Default.TrendingUp,
-                    contentDescription = null,
+                    Icons.AutoMirrored.Filled.TrendingUp,
+                    contentDescription = "Buy $stockSymbol stock",
                     tint = Color.White,
                     modifier = Modifier.size(20.dp)
                 )

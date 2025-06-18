@@ -2,11 +2,17 @@ package com.example.stockit.utils
 
 import android.content.Context
 import android.content.SharedPreferences
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class AuthManager(private val context: Context) {
+@Singleton
+class AuthManager @Inject constructor(
+    @ApplicationContext private val context: Context
+) {
     private val sharedPrefs: SharedPreferences = 
         context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE)
     

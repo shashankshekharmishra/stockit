@@ -7,10 +7,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.TrendingDown
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.TrendingDown
-import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -286,7 +286,7 @@ fun HomeScreen(
                 }
 
                 item {
-                    Spacer(modifier = Modifier.height(100.dp))
+                    Spacer(modifier = Modifier.height(120.dp)) // Increased from 100.dp to account for floating nav bar
                 }
             }
         }
@@ -525,7 +525,7 @@ fun EnhancedStockListItem(
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
                         Icon(
-                            imageVector = if (isPositive) Icons.Default.TrendingUp else Icons.Default.TrendingDown,
+                            imageVector = if (isPositive) Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
                             contentDescription = null,
                             tint = changeColor,
                             modifier = Modifier.size(14.dp)

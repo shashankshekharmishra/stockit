@@ -12,7 +12,9 @@ import androidx.navigation.compose.rememberNavController
 import com.example.stockit.ui.navigation.Navigation
 import com.example.stockit.ui.theme.StockItTheme
 import com.example.stockit.utils.AuthManager
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

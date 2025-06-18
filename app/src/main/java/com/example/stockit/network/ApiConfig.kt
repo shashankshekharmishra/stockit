@@ -205,6 +205,31 @@ interface StockApiService {
         @Header("Authorization") token: String,
         @Body request: AffordabilityRequest
     ): AffordabilityResponse
+
+    // Watchlist endpoints
+    @GET("api/user/watchlist")
+    suspend fun getUserWatchlist(
+        @Header("Authorization") token: String,
+        @Query("prices") prices: String = "true"
+    ): WatchlistResponse
+
+    @POST("api/user/watchlist")
+    suspend fun addToWatchlist(
+        @Header("Authorization") token: String,
+        @Body request: AddToWatchlistRequest
+    ): WatchlistActionResponse
+
+    @DELETE("api/user/watchlist/{symbol}")
+    suspend fun removeFromWatchlist(
+        @Header("Authorization") token: String,
+        @Path("symbol") symbol: String
+    ): WatchlistActionResponse
+
+    @GET("api/user/watchlist/check/{symbol}")
+    suspend fun checkWatchlistStatus(
+        @Header("Authorization") token: String,
+        @Path("symbol") symbol: String
+    ): WatchlistActionResponse
 }
 
 // Auth API Service Interface
@@ -389,4 +414,41 @@ data class AffordabilityResponse(
     val data: Any? = null,
     val error: String? = null,
     val timestamp: String? = null
+)
+
+data class WatchlistResponse(
+    val success: Boolean,
+    val totalStocks: Int?,
+    val stocks: List<WatchlistStock>?,
+    val error: String?,
+    val timestamp: String?
+)
+
+data class WatchlistActionResponse(
+    val success: Boolean,
+    val added: Boolean?,
+    val removed: Boolean?,
+    val symbol: String?,
+    val companyName: String?,
+    val message: String?,
+    val error: String?,
+    val inWatchlist: Boolean?,
+    val timestamp: String?
+)
+
+data class WatchlistStock(
+    val symbol: String,
+    val companyName: String?,
+    val price: Double?,
+    val change: Double?,
+    val changePercent: Double?,
+    val high: Double?,
+    val low: Double?,
+    val volume: Long?,
+    val addedAt: String?,
+    val inWatchlist: Boolean = true
+)
+
+data class AddToWatchlistRequest(
+    val symbol: String
 )

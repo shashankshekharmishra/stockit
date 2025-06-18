@@ -3,6 +3,7 @@ package com.example.stockit.ui.screens.stock
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.stockit.data.repository.WatchlistRepository
 import com.example.stockit.network.ApiConfig
 import com.example.stockit.network.AffordabilityRequest
 import com.example.stockit.network.TradeRequest
@@ -12,13 +13,17 @@ import com.example.stockit.utils.AuthManager
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.reflect.TypeToken
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
+import javax.inject.Inject
 
 data class StockDetailUiState(
     val stockData: StockData? = null,
@@ -30,7 +35,9 @@ data class StockDetailUiState(
     val error: String? = null,
     val successMessage: String? = null,
     val isAuthenticated: Boolean = false,
-    val affordabilityResult: AffordabilityResult? = null
+    val affordabilityResult: AffordabilityResult? = null,
+    val isInWatchlist: Boolean = false,
+    val watchlistLoading: Boolean = false
 )
 
 data class StockData(
@@ -68,18 +75,28 @@ data class AffordabilityResult(
     val message: String?
 )
 
-class StockDetailViewModel : ViewModel() {
+@HiltViewModel
+class StockDetailViewModel @Inject constructor(
+    private val authManager: AuthManager,
+    private val watchlistRepository: WatchlistRepository
+) : ViewModel() {
     private val _uiState = MutableStateFlow(StockDetailUiState())
     val uiState: StateFlow<StockDetailUiState> = _uiState.asStateFlow()
     
     private val gson = Gson()
-    private var authManager: AuthManager? = null
     
-    fun initializeAuth(context: Context) {
-        authManager = AuthManager.getInstance(context)
-        _uiState.value = _uiState.value.copy(
-            isAuthenticated = authManager?.hasValidToken() == true
-        )
+    init {
+        viewModelScope.launch {
+            try {
+                // Use the StateFlow from AuthManager instead of the function
+                authManager.isLoggedInState.collectLatest { isLoggedIn ->
+                    _uiState.value = _uiState.value.copy(isAuthenticated = isLoggedIn)
+                }
+            } catch (e: Exception) {
+                println("⚠️ Error collecting auth state: ${e.message}")
+                _uiState.value = _uiState.value.copy(isAuthenticated = false)
+            }
+        }
     }
     
     fun loadStockData(symbol: String) {
@@ -323,10 +340,13 @@ class StockDetailViewModel : ViewModel() {
             _uiState.value = _uiState.value.copy(isTradingLoading = true, error = null)
             
             try {
-                val token = authManager?.getBearerToken() ?: throw Exception("No authentication token")
+                val token = authManager.getAccessToken()
+                if (token.isEmpty()) {
+                    throw Exception("No authentication token")
+                }
                 
                 val response = ApiConfig.stockApiService.buyStock(
-                    token = token,
+                    token = "Bearer $token",
                     request = TradeRequest(
                         symbol = symbol,
                         quantity = quantity,
@@ -360,10 +380,13 @@ class StockDetailViewModel : ViewModel() {
             _uiState.value = _uiState.value.copy(isTradingLoading = true, error = null)
             
             try {
-                val token = authManager?.getBearerToken() ?: throw Exception("No authentication token")
+                val token = authManager.getAccessToken()
+                if (token.isEmpty()) {
+                    throw Exception("No authentication token")
+                }
                 
                 val response = ApiConfig.stockApiService.sellStock(
-                    token = token,
+                    token = "Bearer $token",
                     request = TradeRequest(
                         symbol = symbol,
                         quantity = quantity,
@@ -395,10 +418,13 @@ class StockDetailViewModel : ViewModel() {
             if (!validateAuthentication()) return@launch
             
             try {
-                val token = authManager?.getBearerToken() ?: throw Exception("No authentication token")
+                val token = authManager.getAccessToken()
+                if (token.isEmpty()) {
+                    throw Exception("No authentication token")
+                }
                 
                 val response = ApiConfig.stockApiService.checkAffordability(
-                    token = token,
+                    token = "Bearer $token",
                     request = AffordabilityRequest(
                         symbol = symbol,
                         quantity = quantity,
@@ -428,22 +454,31 @@ class StockDetailViewModel : ViewModel() {
         }
     }
     
-    private fun validateAuthentication(): Boolean {
-        val isAuthenticated = authManager?.hasValidToken() == true
-        if (!isAuthenticated) {
+    private suspend fun validateAuthentication(): Boolean {
+        return try {
+            val isAuthenticated = authManager.isLoggedIn()
+            if (!isAuthenticated) {
+                _uiState.value = _uiState.value.copy(
+                    error = "Please sign in to trade stocks",
+                    isAuthenticated = false
+                )
+                false
+            } else {
+                true
+            }
+        } catch (e: Exception) {
+            println("⚠️ Error validating authentication: ${e.message}")
             _uiState.value = _uiState.value.copy(
-                error = "Please sign in to trade stocks",
+                error = "Authentication error. Please sign in again",
                 isAuthenticated = false
             )
+            false
         }
-        return isAuthenticated
     }
     
     private fun handleTradingError(e: Exception, action: String) {
         val errorMessage = when {
             e.message?.contains("401") == true || e.message?.contains("Unauthorized") == true -> {
-                authManager?.logout()
-                _uiState.value = _uiState.value.copy(isAuthenticated = false)
                 "Session expired. Please sign in again"
             }
             e.message?.contains("403") == true -> "You don't have permission to $action stocks"
@@ -565,6 +600,68 @@ class StockDetailViewModel : ViewModel() {
         } catch (e: Exception) {
             println("⚠️ Failed to parse ISO date: $isoString, error: ${e.message}")
             System.currentTimeMillis()
+        }
+    }
+
+    fun checkWatchlistStatus(symbol: String) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(watchlistLoading = true)
+            
+            watchlistRepository.checkWatchlistStatus(symbol)
+                .onSuccess { isInWatchlist ->
+                    _uiState.value = _uiState.value.copy(
+                        isInWatchlist = isInWatchlist,
+                        watchlistLoading = false
+                    )
+                }
+                .onFailure {
+                    _uiState.value = _uiState.value.copy(
+                        isInWatchlist = false,
+                        watchlistLoading = false
+                    )
+                }
+        }
+    }
+
+    fun addToWatchlist(symbol: String) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(watchlistLoading = true)
+            
+            watchlistRepository.addToWatchlist(symbol)
+                .onSuccess { response ->
+                    _uiState.value = _uiState.value.copy(
+                        isInWatchlist = true,
+                        watchlistLoading = false,
+                        successMessage = response.message ?: "Added to watchlist"
+                    )
+                }
+                .onFailure { exception ->
+                    _uiState.value = _uiState.value.copy(
+                        watchlistLoading = false,
+                        error = exception.message ?: "Failed to add to watchlist"
+                    )
+                }
+        }
+    }
+
+    fun removeFromWatchlist(symbol: String) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(watchlistLoading = true)
+            
+            watchlistRepository.removeFromWatchlist(symbol)
+                .onSuccess { response ->
+                    _uiState.value = _uiState.value.copy(
+                        isInWatchlist = false,
+                        watchlistLoading = false,
+                        successMessage = response.message ?: "Removed from watchlist"
+                    )
+                }
+                .onFailure { exception ->
+                    _uiState.value = _uiState.value.copy(
+                        watchlistLoading = false,
+                        error = exception.message ?: "Failed to remove from watchlist"
+                    )
+                }
         }
     }
 }
