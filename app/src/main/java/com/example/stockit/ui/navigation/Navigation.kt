@@ -90,17 +90,21 @@ fun Navigation(navController: NavHostController) {
                     }
                 ) {
                     HomeScreen(
-                        onSearchClick = { /* TODO: Navigate to search */ },
                         onStockClick = { stockSymbol -> 
                             navController.navigate("stock_detail/$stockSymbol")
+                        },
+                        onNavigateToOnboarding = {
+                            navController.navigate("onboarding")
                         }
                     )
                 }
             } else {
                 HomeScreen(
-                    onSearchClick = { /* TODO: Navigate to search */ },
                     onStockClick = { stockSymbol -> 
                         navController.navigate("stock_detail/$stockSymbol")
+                    },
+                    onNavigateToOnboarding = {
+                        navController.navigate("onboarding")
                     }
                 )
             }
@@ -119,10 +123,18 @@ fun Navigation(navController: NavHostController) {
                         }
                     }
                 ) {
-                    WatchlistScreen()
+                    WatchlistScreen(
+                        onStockClick = { stockSymbol -> 
+                            navController.navigate("stock_detail/$stockSymbol")
+                        }
+                    )
                 }
             } else {
-                WatchlistScreen()
+                WatchlistScreen(
+                    onStockClick = { stockSymbol -> 
+                        navController.navigate("stock_detail/$stockSymbol")
+                    }
+                )
             }
         }
         composable(

@@ -17,6 +17,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.*
@@ -201,12 +202,12 @@ fun WatchlistHeader(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(120.dp)
+                .height(72.dp) // Match HomeScreen header height
                 .background(
-                    color = Color(0xFF1E293B).copy(alpha = 0.9f),
-                    shape = RoundedCornerShape(28.dp)
+                    color = Color(0xFF1E293B).copy(alpha = 0.95f),
+                    shape = RoundedCornerShape(20.dp) // Match HomeScreen corner radius
                 )
-                .clip(RoundedCornerShape(28.dp))
+                .clip(RoundedCornerShape(20.dp))
         ) {
             Box(
                 modifier = Modifier
@@ -214,7 +215,7 @@ fun WatchlistHeader(
                     .background(
                         brush = Brush.linearGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = 0.1f),
+                                Color.White.copy(alpha = 0.08f),
                                 Color.White.copy(alpha = 0.02f)
                             ),
                             start = Offset(0f, 0f),
@@ -227,54 +228,92 @@ fun WatchlistHeader(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 20.dp, vertical = 12.dp), // Match HomeScreen padding
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
+            // Watchlist Icon (left side) - consistent with home's profile button
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                Color(0xFF6366F1),
+                                Color(0xFF8B5CF6)
+                            )
+                        ),
+                        shape = CircleShape
+                    )
+                    .shadow(6.dp, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Visibility,
+                    contentDescription = "Watchlist",
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            
+            // Title and Count (center) - consistent styling
             Column(
-                modifier = Modifier.weight(1f)
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
                     text = "My Watchlist",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.ExtraBold,
                     color = Color.White,
-                    fontSize = 24.sp
+                    letterSpacing = 1.5.sp,
+                    fontSize = 20.sp // Slightly smaller than home to fit with subtitle
                 )
                 if (isAuthenticated) {
                     Text(
                         text = "$stockCount ${if (stockCount == 1) "stock" else "stocks"} tracked",
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFFE2E8F0),
-                        fontSize = 14.sp
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
                     )
                 }
             }
             
+            // Refresh Button (right side) - consistent with home
             if (isAuthenticated) {
                 IconButton(
                     onClick = onRefresh,
                     modifier = Modifier
                         .size(48.dp)
                         .background(
-                            color = Color(0xFF334155).copy(alpha = 0.8f),
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    Color(0xFF475569),
+                                    Color(0xFF334155)
+                                )
+                            ),
                             shape = CircleShape
                         )
+                        .shadow(6.dp, CircleShape)
                 ) {
                     if (isRefreshing) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
+                            modifier = Modifier.size(20.dp),
                             color = Color.White,
-                            strokeWidth = 2.dp
+                            strokeWidth = 2.5.dp
                         )
                     } else {
                         Icon(
                             Icons.Default.Refresh,
                             contentDescription = "Refresh watchlist",
                             tint = Color.White,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                     }
                 }
+            } else {
+                // Empty spacer to maintain layout balance when not authenticated
+                Spacer(modifier = Modifier.size(48.dp))
             }
         }
     }

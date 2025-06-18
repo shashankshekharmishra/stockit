@@ -18,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.text.font.FontWeight
@@ -211,12 +212,12 @@ fun ProfileHeader(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(140.dp)
+                .height(72.dp) // Match WatchlistScreen header height
                 .background(
-                    color = Color(0xFF1E293B).copy(alpha = 0.9f),
-                    shape = RoundedCornerShape(28.dp)
+                    color = Color(0xFF1E293B).copy(alpha = 0.95f),
+                    shape = RoundedCornerShape(20.dp) // Match WatchlistScreen corner radius
                 )
-                .clip(RoundedCornerShape(28.dp))
+                .clip(RoundedCornerShape(20.dp))
         ) {
             Box(
                 modifier = Modifier
@@ -224,7 +225,7 @@ fun ProfileHeader(
                     .background(
                         brush = Brush.linearGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = 0.1f),
+                                Color.White.copy(alpha = 0.08f),
                                 Color.White.copy(alpha = 0.02f)
                             ),
                             start = Offset(0f, 0f),
@@ -237,18 +238,45 @@ fun ProfileHeader(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 20.dp, vertical = 12.dp), // Match WatchlistScreen padding
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
+            // Profile Icon (left side) - consistent with watchlist's icon
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                Color(0xFF6366F1),
+                                Color(0xFF8B5CF6)
+                            )
+                        ),
+                        shape = CircleShape
+                    )
+                    .shadow(6.dp, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.AccountCircle,
+                    contentDescription = "Profile",
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            
+            // Title and User Info (center) - consistent styling
             Column(
-                modifier = Modifier.weight(1f)
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
                     text = if (isAuthenticated) "My Profile" else "Profile",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.ExtraBold,
                     color = Color.White,
-                    fontSize = 24.sp
+                    letterSpacing = 1.5.sp,
+                    fontSize = 20.sp // Match WatchlistScreen font size
                 )
                 
                 // Create local variable to enable smart cast
@@ -256,43 +284,46 @@ fun ProfileHeader(
                 if (isAuthenticated && profile != null) {
                     Text(
                         text = profile.fullName,
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFFE2E8F0),
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Text(
-                        text = profile.email,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color(0xFF94A3B8),
-                        fontSize = 14.sp
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
             
+            // Action Buttons (right side) - consistent with watchlist
             if (isAuthenticated) {
                 Row {
                     IconButton(
                         onClick = onRefresh,
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(48.dp)
                             .background(
-                                color = Color(0xFF334155).copy(alpha = 0.8f),
+                                brush = Brush.linearGradient(
+                                    colors = listOf(
+                                        Color(0xFF475569),
+                                        Color(0xFF334155)
+                                    )
+                                ),
                                 shape = CircleShape
                             )
+                            .shadow(6.dp, CircleShape)
                     ) {
                         if (isRefreshing) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(20.dp),
                                 color = Color.White,
-                                strokeWidth = 2.dp
+                                strokeWidth = 2.5.dp
                             )
                         } else {
                             Icon(
                                 Icons.Default.Refresh,
                                 contentDescription = "Refresh profile",
                                 tint = Color.White,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(22.dp)
                             )
                         }
                     }
@@ -302,20 +333,29 @@ fun ProfileHeader(
                     IconButton(
                         onClick = onLogout,
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(48.dp)
                             .background(
-                                color = Color(0xFFEF4444).copy(alpha = 0.2f),
+                                brush = Brush.linearGradient(
+                                    colors = listOf(
+                                        Color(0xFFEF4444).copy(alpha = 0.3f),
+                                        Color(0xFFDC2626).copy(alpha = 0.2f)
+                                    )
+                                ),
                                 shape = CircleShape
                             )
+                            .shadow(6.dp, CircleShape)
                     ) {
                         Icon(
                             Icons.AutoMirrored.Filled.ExitToApp,
                             contentDescription = "Logout",
                             tint = Color(0xFFEF4444),
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                     }
                 }
+            } else {
+                // Empty spacer to maintain layout balance when not authenticated
+                Spacer(modifier = Modifier.size(48.dp))
             }
         }
     }

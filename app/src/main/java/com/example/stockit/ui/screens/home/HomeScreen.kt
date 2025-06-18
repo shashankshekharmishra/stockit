@@ -12,6 +12,7 @@ import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Person // Add this import
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -43,6 +44,7 @@ import androidx.compose.ui.geometry.Offset
 fun HomeScreen(
     onSearchClick: () -> Unit = {},
     onStockClick: (String) -> Unit = {},
+    onNavigateToOnboarding: () -> Unit = {}, // Add this parameter
     viewModel: HomeViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -158,8 +160,8 @@ fun HomeScreen(
         ) {
             // Header
             HomeHeader(
-                onSearchClick = onSearchClick,
                 onRefresh = { viewModel.loadData() },
+                onNavigateToOnboarding = onNavigateToOnboarding, // Pass the callback
                 isRefreshing = uiState.isLoadingStocks || uiState.isLoadingPortfolio,
                 modifier = Modifier.offset(y = headerOffset.dp)
             )
@@ -242,8 +244,8 @@ fun HomeScreen(
 
 @Composable
 fun HomeHeader(
-    onSearchClick: () -> Unit,
     onRefresh: () -> Unit,
+    onNavigateToOnboarding: () -> Unit,
     isRefreshing: Boolean,
     modifier: Modifier = Modifier
 ) {
@@ -255,12 +257,12 @@ fun HomeHeader(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(120.dp)
+                .height(72.dp) // Slightly reduced height
                 .background(
-                    color = Color(0xFF1E293B).copy(alpha = 0.9f),
-                    shape = RoundedCornerShape(28.dp)
+                    color = Color(0xFF1E293B).copy(alpha = 0.95f),
+                    shape = RoundedCornerShape(20.dp)
                 )
-                .clip(RoundedCornerShape(28.dp))
+                .clip(RoundedCornerShape(20.dp))
         ) {
             Box(
                 modifier = Modifier
@@ -268,7 +270,7 @@ fun HomeHeader(
                     .background(
                         brush = Brush.linearGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = 0.1f),
+                                Color.White.copy(alpha = 0.08f),
                                 Color.White.copy(alpha = 0.02f)
                             ),
                             start = Offset(0f, 0f),
@@ -281,88 +283,81 @@ fun HomeHeader(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
+            // Profile/Guide Button (left side)
             IconButton(
-                onClick = { /* Handle menu */ },
+                onClick = onNavigateToOnboarding,
                 modifier = Modifier
                     .size(48.dp)
                     .background(
-                        color = Color(0xFF334155).copy(alpha = 0.8f),
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                Color(0xFF6366F1),
+                                Color(0xFF8B5CF6)
+                            )
+                        ),
                         shape = CircleShape
                     )
+                    .shadow(6.dp, CircleShape)
             ) {
                 Icon(
-                    Icons.Default.Menu,
-                    contentDescription = "Menu",
+                    imageVector = androidx.compose.material.icons.Icons.Default.Person,
+                    contentDescription = "Profile Guide",
                     tint = Color.White,
                     modifier = Modifier.size(24.dp)
                 )
             }
             
-            Column(
-                modifier = Modifier.weight(1f),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "StockIt",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    letterSpacing = 1.5.sp,
-                    fontSize = 24.sp
-                )
-                Text(
-                    text = "Dashboard",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFFE2E8F0),
-                    fontSize = 14.sp
-                )
-            }
+            // App Title (center) - Fixed styling
+            Text(
+                text = "StockIt",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.ExtraBold,
+                color = Color.White,
+                letterSpacing = 1.5.sp,
+                fontSize = 26.sp,
+                modifier = Modifier
+                    .background(
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.Transparent
+                            )
+                        )
+                    )
+            )
             
-            Row {
-                IconButton(
-                    onClick = onRefresh,
-                    modifier = Modifier
-                        .size(48.dp)
-                        .background(
-                            color = Color(0xFF334155).copy(alpha = 0.8f),
-                            shape = CircleShape
-                        )
-                ) {
-                    if (isRefreshing) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = Color.White,
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Icon(
-                            Icons.Default.Refresh,
-                            contentDescription = "Refresh",
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
-                
-                Spacer(modifier = Modifier.width(8.dp))
-                
-                IconButton(
-                    onClick = onSearchClick,
-                    modifier = Modifier
-                        .size(48.dp)
-                        .background(
-                            color = Color(0xFF334155).copy(alpha = 0.8f),
-                            shape = CircleShape
-                        )
-                ) {
+            // Refresh Button (right side) - Improved design
+            IconButton(
+                onClick = onRefresh,
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                Color(0xFF475569),
+                                Color(0xFF334155)
+                            )
+                        ),
+                        shape = CircleShape
+                    )
+                    .shadow(6.dp, CircleShape)
+            ) {
+                if (isRefreshing) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = Color.White,
+                        strokeWidth = 2.5.dp
+                    )
+                } else {
                     Icon(
-                        Icons.Default.Search,
-                        contentDescription = "Search",
+                        Icons.Default.Refresh,
+                        contentDescription = "Refresh",
                         tint = Color.White,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(22.dp)
                     )
                 }
             }

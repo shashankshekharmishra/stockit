@@ -17,6 +17,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow  // Add this import
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -24,6 +25,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow  // Add this import
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -371,25 +373,25 @@ fun AccessibleHeader(
                 contentDescription = "Header section for $stockSymbol stock"
             }
     ) {
-        // Enhanced glass morphism with better contrast
+        // Enhanced glass morphism with better contrast - matching watchlist style
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(120.dp)
+                .height(72.dp) // Match watchlist header height
                 .background(
-                    color = Color(0xFF1E293B).copy(alpha = 0.9f),
-                    shape = RoundedCornerShape(28.dp)
+                    color = Color(0xFF1E293B).copy(alpha = 0.95f),
+                    shape = RoundedCornerShape(20.dp) // Match watchlist corner radius
                 )
-                .clip(RoundedCornerShape(28.dp))
+                .clip(RoundedCornerShape(20.dp))
         ) {
-            // Subtle gradient overlay
+            // Subtle gradient overlay - matching watchlist
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
                         brush = Brush.linearGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = 0.1f),
+                                Color.White.copy(alpha = 0.08f),
                                 Color.White.copy(alpha = 0.02f)
                             ),
                             start = Offset(0f, 0f),
@@ -403,21 +405,30 @@ fun AccessibleHeader(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 20.dp, vertical = 12.dp), // Match watchlist padding
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            IconButton(
-                onClick = onBackClick,
+            // Back Button (left side) - consistent with watchlist icon styling
+            Box(
                 modifier = Modifier
                     .size(48.dp)
                     .background(
-                        color = Color(0xFF334155).copy(alpha = 0.8f),
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                Color(0xFF475569),
+                                Color(0xFF334155)
+                            )
+                        ),
                         shape = CircleShape
                     )
+                    .shadow(6.dp, CircleShape)
+                    .clickable { onBackClick() }
                     .semantics {
                         contentDescription = "Go back to previous screen"
                         role = Role.Button
-                    }
+                    },
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowBack,
@@ -427,9 +438,9 @@ fun AccessibleHeader(
                 )
             }
             
-            Spacer(modifier = Modifier.width(16.dp))
-            
+            // Stock Info (center) - consistent styling with watchlist
             Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
                     .weight(1f)
                     .semantics {
@@ -438,79 +449,73 @@ fun AccessibleHeader(
             ) {
                 Text(
                     text = stockSymbol,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.ExtraBold,
                     color = Color.White,
-                    fontSize = 24.sp
+                    letterSpacing = 1.5.sp,
+                    fontSize = 20.sp // Match watchlist title size
                 )
                 stockData?.name?.let { name ->
                     Text(
                         text = name,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFFE2E8F0),
-                        fontSize = 14.sp,
-                        modifier = Modifier.semantics {
-                            contentDescription = "Company name: $name"
-                        }
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .semantics {
+                                contentDescription = "Company name: $name"
+                            }
                     )
                 }
             }
             
-            Row {
-                // Watchlist button (only show if authenticated)
-                if (isAuthenticated) {
-                    IconButton(
-                        onClick = onWatchlistClick,
-                        modifier = Modifier
-                            .size(48.dp)
-                            .background(
-                                color = if (isInWatchlist) {
-                                    Color(0xFF10B981).copy(alpha = 0.2f)
-                                } else {
-                                    Color(0xFF334155).copy(alpha = 0.8f)
-                                },
-                                shape = CircleShape
-                            )
-                            .semantics {
-                                contentDescription = if (isInWatchlist) {
-                                    "Remove $stockSymbol from watchlist"
-                                } else {
-                                    "Add $stockSymbol to watchlist"
-                                }
-                                role = Role.Button
-                            }
-                    ) {
-                        Icon(
-                            if (isInWatchlist) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                            contentDescription = null,
-                            tint = if (isInWatchlist) Color(0xFF10B981) else Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                    
-                    Spacer(modifier = Modifier.width(8.dp))
-                }
-                
+            // Watchlist button (right side) - only show if authenticated
+            if (isAuthenticated) {
                 IconButton(
-                    onClick = { /* TODO: Share */ },
+                    onClick = onWatchlistClick,
                     modifier = Modifier
                         .size(48.dp)
                         .background(
-                            color = Color(0xFF334155).copy(alpha = 0.8f),
+                            brush = if (isInWatchlist) {
+                                Brush.linearGradient(
+                                    colors = listOf(
+                                        Color(0xFF10B981),
+                                        Color(0xFF059669)
+                                    )
+                                )
+                            } else {
+                                Brush.linearGradient(
+                                    colors = listOf(
+                                        Color(0xFF475569),
+                                        Color(0xFF334155)
+                                    )
+                                )
+                            },
                             shape = CircleShape
                         )
+                        .shadow(6.dp, CircleShape)
                         .semantics {
-                            contentDescription = "Share $stockSymbol stock information"
+                            contentDescription = if (isInWatchlist) {
+                                "Remove $stockSymbol from watchlist"
+                            } else {
+                                "Add $stockSymbol to watchlist"
+                            }
                             role = Role.Button
                         }
                 ) {
                     Icon(
-                        Icons.Default.Share,
+                        if (isInWatchlist) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                         contentDescription = null,
                         tint = Color.White,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(22.dp) // Match watchlist icon size
                     )
                 }
+            } else {
+                // Empty spacer to maintain layout balance when not authenticated
+                Spacer(modifier = Modifier.size(48.dp))
             }
         }
     }
