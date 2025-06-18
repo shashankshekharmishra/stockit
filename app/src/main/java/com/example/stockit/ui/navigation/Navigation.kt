@@ -14,7 +14,6 @@ import com.example.stockit.ui.screens.auth.SignInScreen
 import com.example.stockit.ui.screens.auth.SignUpScreen
 import com.example.stockit.ui.screens.auth.SignInSuccessScreen
 import com.example.stockit.ui.screens.home.HomeScreen
-import com.example.stockit.ui.screens.portfolio.PortfolioScreen
 import com.example.stockit.ui.screens.stock.StockDetailScreen
 import com.example.stockit.ui.screens.profile.ProfileScreen
 import com.example.stockit.ui.screens.watchlist.WatchlistScreen
@@ -126,7 +125,6 @@ fun Navigation(navController: NavHostController) {
                 WatchlistScreen()
             }
         }
-        composable("portfolio") { PortfolioScreen() }
         composable(
             "stock_detail/{stockSymbol}",
             arguments = listOf(navArgument("stockSymbol") { type = NavType.StringType })
@@ -151,10 +149,28 @@ fun Navigation(navController: NavHostController) {
                         }
                     }
                 ) {
-                    ProfileScreen()
+                    ProfileScreen(
+                        onStockClick = { stockSymbol -> 
+                            navController.navigate("stock_detail/$stockSymbol")
+                        },
+                        onLogout = {
+                            navController.navigate("home") {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        }
+                    )
                 }
             } else {
-                ProfileScreen()
+                ProfileScreen(
+                    onStockClick = { stockSymbol -> 
+                        navController.navigate("stock_detail/$stockSymbol")
+                    },
+                    onLogout = {
+                        navController.navigate("home") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                )
             }
         }
     }

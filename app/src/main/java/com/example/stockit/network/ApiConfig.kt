@@ -335,38 +335,64 @@ data class StockCompareResponse(
 
 data class WalletResponse(
     val success: Boolean,
-    val data: Any? = null,
-    val message: String? = null,
-    val error: String? = null,
-    val timestamp: String? = null
-)
-
-data class WalletTransactionsResponse(
-    val success: Boolean,
-    val data: Any? = null,
-    val pagination: Any? = null,
-    val timestamp: String? = null
-)
-
-data class TradeResponse(
-    val success: Boolean,
-    val data: Any? = null,
-    val message: String? = null,
-    val error: String? = null,
-    val timestamp: String? = null
+    val userId: Int? = null,
+    val balance: Double? = null,
+    val totalInvested: Double? = null,
+    val totalCurrentValue: Double? = null,
+    val totalProfitLoss: Double? = null,
+    val totalProfitLossPercent: Double? = null,
+    val totalNetWorth: Double? = null,
+    val createdAt: String? = null,
+    val updatedAt: String? = null
 )
 
 data class PortfolioResponse(
     val success: Boolean,
-    val data: Any? = null,
-    val timestamp: String? = null
+    val totalHoldings: Int? = null,
+    val totalInvested: Double? = null,
+    val totalCurrentValue: Double? = null,
+    val totalPnL: Double? = null,
+    val totalPnLPercent: Double? = null,
+    val holdings: List<PortfolioHolding>? = null,
+    val timestamp: String? = null,
+    val error: String? = null
+)
+
+// Remove the old PortfolioData class as it's not needed
+// The PortfolioHolding class should match the actual API response:
+data class PortfolioHolding(
+    val symbol: String,
+    val companyName: String,
+    val quantity: Int,
+    val avgPrice: Double,
+    val currentPrice: Double,
+    val investedAmount: Double,
+    val currentValue: Double,
+    val pnl: Double,
+    val pnlPercent: Double,
+    val firstBuyDate: String,
+    val lastUpdated: String
 )
 
 data class TransactionHistoryResponse(
     val success: Boolean,
-    val data: Any? = null,
-    val pagination: Any? = null,
-    val timestamp: String? = null
+    val totalTransactions: Int? = null,
+    val limit: Int? = null,
+    val offset: Int? = null,
+    val transactions: List<TransactionHistoryItem>? = null,
+    val timestamp: String? = null,
+    val error: String? = null
+)
+
+data class TransactionHistoryItem(
+    val id: Int,
+    val symbol: String,
+    val companyName: String,
+    val transactionType: String,
+    val quantity: Int,
+    val price: Double,
+    val totalAmount: Double,
+    val transactionDate: String
 )
 
 data class UserSummaryResponse(
@@ -502,4 +528,45 @@ data class WatchlistStock(
 
 data class AddToWatchlistRequest(
     val symbol: String
+)
+
+data class WalletTransactionsResponse(
+    val success: Boolean,
+    val data: WalletTransactionsData? = null,
+    val error: String? = null,
+    val timestamp: String? = null
+)
+
+data class WalletTransactionsData(
+    val totalTransactions: Int,
+    val limit: Int,
+    val offset: Int,
+    val transactions: List<WalletTransactionItem>,
+    val timestamp: String
+)
+
+data class WalletTransactionItem(
+    val id: Int,
+    val type: String, // "DEPOSIT" or "WITHDRAW"
+    val amount: Double,
+    val description: String?,
+    val createdAt: String
+)
+
+data class TradeResponse(
+    val success: Boolean,
+    val message: String? = null,
+    val error: String? = null,
+    val data: TradeData? = null,
+    val timestamp: String? = null
+)
+
+data class TradeData(
+    val transactionId: Int? = null,
+    val symbol: String? = null,
+    val quantity: Int? = null,
+    val price: Double? = null,
+    val totalAmount: Double? = null,
+    val type: String? = null, // "BUY" or "SELL"
+    val timestamp: String? = null
 )

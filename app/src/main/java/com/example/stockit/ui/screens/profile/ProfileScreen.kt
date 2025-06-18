@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
@@ -62,6 +63,33 @@ fun ProfileScreen(
     LaunchedEffect(Unit) {
         delay(100)
         startAnimation = true
+    }
+    
+    // Continuous background retry mechanism - silently fills missing data
+    LaunchedEffect(uiState.isAuthenticated) {
+        if (uiState.isAuthenticated) {
+            while (true) {
+                delay(3000) // Wait 3 seconds between attempts
+                
+                // Check if we have any missing data that we can try to fill
+                val hasMissingData = uiState.userProfile == null || 
+                                   uiState.portfolioStocks.isEmpty() || 
+                                   uiState.recentTransactions.isEmpty() ||
+                                   (uiState.userProfile?.balance == 0.0 && uiState.userProfile?.totalInvested == 0.0)
+                
+                // Only retry if we have missing data and we're not already loading/refreshing
+                if (hasMissingData && !uiState.isLoading && !uiState.isRefreshing) {
+                    viewModel.retryProfileInBackground()
+                }
+                
+                // Also do periodic updates every 30 seconds to keep data fresh
+                // This helps ensure we have the latest portfolio values and prices
+                delay(27000) // Total 30 seconds (3 + 27)
+                if (!uiState.isLoading && !uiState.isRefreshing) {
+                    viewModel.retryProfileInBackground()
+                }
+            }
+        }
     }
     
     // Handle error messages
@@ -281,7 +309,7 @@ fun ProfileHeader(
                             )
                     ) {
                         Icon(
-                            Icons.Default.ExitToApp,
+                            Icons.AutoMirrored.Filled.ExitToApp,
                             contentDescription = "Logout",
                             tint = Color(0xFFEF4444),
                             modifier = Modifier.size(20.dp)
@@ -739,7 +767,7 @@ fun EmptyPortfolioMessage() {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Icon(
-                Icons.Default.TrendingUp,
+                Icons.AutoMirrored.Filled.TrendingUp,
                 contentDescription = null,
                 modifier = Modifier.size(48.dp),
                 tint = Color(0xFF6366F1)

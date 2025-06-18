@@ -1,5 +1,6 @@
 package com.example.stockit.ui.screens.profile
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.stockit.data.model.PortfolioStock
@@ -73,33 +74,48 @@ class ProfileViewModel @Inject constructor(
                 // Try to get wallet data
                 try {
                     val walletResponse = ApiConfig.stockApiService.getUserWallet(bearerToken)
-                    if (walletResponse.success) {
-                        userProfile = createUserProfileFromWallet(walletResponse.data)
+                    Log.d("ProfileViewModel", "Wallet Response: $walletResponse")
+                    // Check if the response indicates success AND has valid data
+                    if (walletResponse.success && walletResponse.balance != null) {
+                        userProfile = createUserProfileFromWallet(walletResponse)
+                        Log.d("ProfileViewModel", "Wallet data parsed: balance=${userProfile?.balance}")
+                    } else {
+                        Log.w("ProfileViewModel", "Wallet API returned success=false or missing data")
                     }
                 } catch (e: Exception) {
-                    // Continue without wallet data
+                    Log.e("ProfileViewModel", "Failed to get wallet data", e)
                 }
 
                 // Try to get portfolio data
                 try {
                     val portfolioResponse = ApiConfig.stockApiService.getUserPortfolio(bearerToken, updatePrices = "true")
-                    if (portfolioResponse.success && portfolioResponse.data != null) {
-                        portfolioStocks = parsePortfolioStocks(portfolioResponse.data)
+                    Log.d("ProfileViewModel", "Portfolio Response: $portfolioResponse")
+                    // Check if the response indicates success AND has holdings data
+                    if (portfolioResponse.success && portfolioResponse.holdings != null) {
+                        portfolioStocks = parsePortfolioStocks(portfolioResponse)
                         // Update user profile with portfolio summary
-                        userProfile = updateUserProfileWithPortfolio(userProfile, portfolioResponse.data)
+                        userProfile = updateUserProfileWithPortfolio(userProfile, portfolioResponse)
+                        Log.d("ProfileViewModel", "Portfolio data parsed: ${portfolioStocks.size} stocks")
+                    } else {
+                        Log.w("ProfileViewModel", "Portfolio API returned success=false or no holdings")
                     }
                 } catch (e: Exception) {
-                    // Continue without portfolio data
+                    Log.e("ProfileViewModel", "Failed to get portfolio data", e)
                 }
 
                 // Try to get transaction history
                 try {
                     val transactionsResponse = ApiConfig.stockApiService.getTransactionHistory(bearerToken, limit = 10)
-                    if (transactionsResponse.success && transactionsResponse.data != null) {
-                        recentTransactions = parseRecentTransactions(transactionsResponse.data)
+                    Log.d("ProfileViewModel", "Transactions Response: $transactionsResponse")
+                    // Check if the response indicates success AND has transactions data
+                    if (transactionsResponse.success && transactionsResponse.transactions != null) {
+                        recentTransactions = parseRecentTransactions(transactionsResponse)
+                        Log.d("ProfileViewModel", "Transaction data parsed: ${recentTransactions.size} transactions")
+                    } else {
+                        Log.w("ProfileViewModel", "Transactions API returned success=false or no transactions")
                     }
                 } catch (e: Exception) {
-                    // Continue without transaction data
+                    Log.e("ProfileViewModel", "Failed to get transaction data", e)
                 }
 
                 // If we don't have a user profile yet, create a basic one
@@ -116,7 +132,10 @@ class ProfileViewModel @Inject constructor(
                     error = null
                 )
 
+                Log.d("ProfileViewModel", "Profile loaded successfully: user=${userProfile != null}, portfolio=${portfolioStocks.size}, transactions=${recentTransactions.size}")
+
             } catch (e: Exception) {
+                Log.e("ProfileViewModel", "Error loading profile", e)
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     error = "Error loading profile: ${e.localizedMessage ?: "Unknown error"}"
@@ -125,11 +144,155 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
+    // Add the missing refreshProfile method
     fun refreshProfile() {
+        if (!authManager.isLoggedIn()) return
+        
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isRefreshing = true)
-            loadProfileData()
-            _uiState.value = _uiState.value.copy(isRefreshing = false)
+            _uiState.value = _uiState.value.copy(isRefreshing = true, error = null)
+            
+            try {
+                val bearerToken = authManager.getBearerToken()
+                
+                // Load user data with error handling for each API call
+                var userProfile: UserProfile? = null
+                var portfolioStocks: List<PortfolioStock> = emptyList()
+                var recentTransactions: List<RecentTransaction> = emptyList()
+
+                // Try to get wallet data
+                try {
+                    val walletResponse = ApiConfig.stockApiService.getUserWallet(bearerToken)
+                    Log.d("ProfileViewModel", "Refresh Wallet Response: $walletResponse")
+                    if (walletResponse.success && walletResponse.balance != null) {
+                        userProfile = createUserProfileFromWallet(walletResponse)
+                        Log.d("ProfileViewModel", "Refresh wallet data parsed: balance=${userProfile?.balance}")
+                    }
+                } catch (e: Exception) {
+                    Log.e("ProfileViewModel", "Failed to refresh wallet data", e)
+                }
+
+                // Try to get portfolio data
+                try {
+                    val portfolioResponse = ApiConfig.stockApiService.getUserPortfolio(bearerToken, updatePrices = "true")
+                    Log.d("ProfileViewModel", "Refresh Portfolio Response: $portfolioResponse")
+                    if (portfolioResponse.success && portfolioResponse.holdings != null) {
+                        portfolioStocks = parsePortfolioStocks(portfolioResponse)
+                        userProfile = updateUserProfileWithPortfolio(userProfile, portfolioResponse)
+                        Log.d("ProfileViewModel", "Refresh portfolio data parsed: ${portfolioStocks.size} stocks")
+                    }
+                } catch (e: Exception) {
+                    Log.e("ProfileViewModel", "Failed to refresh portfolio data", e)
+                }
+
+                // Try to get transaction history
+                try {
+                    val transactionsResponse = ApiConfig.stockApiService.getTransactionHistory(bearerToken, limit = 10)
+                    Log.d("ProfileViewModel", "Refresh Transactions Response: $transactionsResponse")
+                    if (transactionsResponse.success && transactionsResponse.transactions != null) {
+                        recentTransactions = parseRecentTransactions(transactionsResponse)
+                        Log.d("ProfileViewModel", "Refresh transaction data parsed: ${recentTransactions.size} transactions")
+                    }
+                } catch (e: Exception) {
+                    Log.e("ProfileViewModel", "Failed to refresh transaction data", e)
+                }
+
+                // If we don't have a user profile yet, create a basic one
+                if (userProfile == null) {
+                    userProfile = createBasicUserProfile()
+                }
+
+                _uiState.value = _uiState.value.copy(
+                    isRefreshing = false,
+                    userProfile = userProfile,
+                    portfolioStocks = portfolioStocks,
+                    recentTransactions = recentTransactions,
+                    error = null
+                )
+
+                Log.d("ProfileViewModel", "Profile refresh completed: user=${userProfile != null}, portfolio=${portfolioStocks.size}, transactions=${recentTransactions.size}")
+
+            } catch (e: Exception) {
+                Log.e("ProfileViewModel", "Error refreshing profile", e)
+                _uiState.value = _uiState.value.copy(
+                    isRefreshing = false,
+                    error = "Error refreshing profile: ${e.localizedMessage ?: "Unknown error"}"
+                )
+            }
+        }
+    }
+
+    // Background retry method - fix the condition warnings
+    fun retryProfileInBackground() {
+        if (!_uiState.value.isLoading && !_uiState.value.isRefreshing) {
+            viewModelScope.launch {
+                _uiState.value = _uiState.value.copy(isLoading = true)
+                try {
+                    val bearerToken = authManager.getBearerToken()
+                    
+                    var userProfile: UserProfile? = null
+                    var portfolioStocks: List<PortfolioStock> = emptyList()
+                    var recentTransactions: List<RecentTransaction> = emptyList()
+                    var hasData = false
+
+                    // Try to get wallet data
+                    try {
+                        val walletResponse = ApiConfig.stockApiService.getUserWallet(bearerToken)
+                        if (walletResponse.success && walletResponse.balance != null) {
+                            userProfile = createUserProfileFromWallet(walletResponse)
+                            hasData = true
+                        }
+                    } catch (e: Exception) {
+                        // Continue without wallet data
+                    }
+
+                    // Try to get portfolio data
+                    try {
+                        val portfolioResponse = ApiConfig.stockApiService.getUserPortfolio(bearerToken, updatePrices = "true")
+                        if (portfolioResponse.success && portfolioResponse.holdings != null) {
+                            portfolioStocks = parsePortfolioStocks(portfolioResponse)
+                            userProfile = updateUserProfileWithPortfolio(userProfile, portfolioResponse)
+                            hasData = true
+                        }
+                    } catch (e: Exception) {
+                        // Continue without portfolio data
+                    }
+
+                    // Try to get transaction history
+                    try {
+                        val transactionsResponse = ApiConfig.stockApiService.getTransactionHistory(bearerToken, limit = 10)
+                        if (transactionsResponse.success && transactionsResponse.transactions != null) {
+                            recentTransactions = parseRecentTransactions(transactionsResponse)
+                            hasData = true
+                        }
+                    } catch (e: Exception) {
+                        // Continue without transaction data
+                    }
+
+                    // If we don't have a user profile yet, create a basic one
+                    if (userProfile == null) {
+                        userProfile = createBasicUserProfile()
+                        hasData = true // Basic profile counts as having data
+                    }
+
+                    if (hasData) {
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            userProfile = userProfile,
+                            portfolioStocks = portfolioStocks,
+                            recentTransactions = recentTransactions,
+                            error = null
+                        )
+                        Log.i("ProfileViewModel", "Background profile retry successful: wallet=${userProfile != null}, portfolio=${portfolioStocks.size} stocks, transactions=${recentTransactions.size}")
+                    } else {
+                        _uiState.value = _uiState.value.copy(isLoading = false)
+                        Log.w("ProfileViewModel", "Background profile retry failed: no data received")
+                    }
+
+                } catch (e: Exception) {
+                    Log.w("ProfileViewModel", "Background profile retry failed", e)
+                    _uiState.value = _uiState.value.copy(isLoading = false)
+                }
+            }
         }
     }
 
@@ -138,47 +301,126 @@ class ProfileViewModel @Inject constructor(
         _uiState.value = ProfileUiState(isAuthenticated = false)
     }
 
-    private fun createUserProfileFromWallet(walletData: Any?): UserProfile? {
+    // Fixed: Parse wallet response correctly - handle the WalletResponse structure
+    private fun createUserProfileFromWallet(walletResponse: Any?): UserProfile? {
         return try {
-            val walletJson = gson.toJsonTree(walletData).asJsonObject
-            val balance = walletJson.get("balance")?.asDouble ?: 0.0
+            val responseJson = gson.toJsonTree(walletResponse).asJsonObject
+            Log.d("ProfileViewModel", "Full Wallet Response: $responseJson")
+            
+            // For WalletResponse, the data is at the root level, not nested under "data"
+            val balance = responseJson.get("balance")?.asDouble ?: 0.0
+            val totalInvested = responseJson.get("totalInvested")?.asDouble ?: 0.0
+            val totalCurrentValue = responseJson.get("totalCurrentValue")?.asDouble ?: 0.0
+            val totalProfitLoss = responseJson.get("totalProfitLoss")?.asDouble ?: 0.0
+            val totalProfitLossPercent = responseJson.get("totalProfitLossPercent")?.asDouble ?: 0.0
 
-            UserProfile(
+            val profile = UserProfile(
                 id = authManager.getUserId(),
                 fullName = authManager.getUserFullName(),
                 email = authManager.getUserEmail(),
                 balance = balance,
-                totalInvested = 0.0,
-                totalValue = 0.0,
-                profitLoss = 0.0,
-                profitLossPercent = 0.0,
+                totalInvested = totalInvested,
+                totalValue = totalCurrentValue,
+                profitLoss = totalProfitLoss,
+                profitLossPercent = totalProfitLossPercent,
                 totalStocks = 0,
                 joinedDate = null
             )
+            
+            Log.d("ProfileViewModel", "Created profile from wallet: balance=$balance, invested=$totalInvested")
+            profile
         } catch (e: Exception) {
+            Log.e("ProfileViewModel", "Failed to parse wallet response", e)
             null
         }
     }
 
+    // Simplified portfolio parsing since we know the exact structure
+    private fun parsePortfolioStocks(data: Any?): List<PortfolioStock> {
+        return try {
+            val portfolioResponse = data as? com.example.stockit.network.PortfolioResponse
+            if (portfolioResponse?.holdings != null) {
+                Log.d("ProfileViewModel", "Portfolio holdings found: ${portfolioResponse.holdings.size}")
+                portfolioResponse.holdings.map { holding ->
+                    PortfolioStock(
+                        symbol = holding.symbol,
+                        companyName = holding.companyName,
+                        quantity = holding.quantity,
+                        averagePrice = holding.avgPrice,
+                        currentPrice = holding.currentPrice,
+                        investedAmount = holding.investedAmount,
+                        currentValue = holding.currentValue,
+                        profitLoss = holding.pnl,
+                        profitLossPercent = holding.pnlPercent,
+                        firstBuyDate = holding.firstBuyDate
+                    )
+                }.also {
+                    Log.d("ProfileViewModel", "Successfully parsed ${it.size} portfolio stocks")
+                }
+            } else {
+                Log.w("ProfileViewModel", "No holdings found in portfolio response")
+                emptyList()
+            }
+        } catch (e: Exception) {
+            Log.e("ProfileViewModel", "Failed to parse portfolio stocks", e)
+            emptyList()
+        }
+    }
+
+    // Simplified transaction parsing since we know the exact structure
+    private fun parseRecentTransactions(data: Any?): List<RecentTransaction> {
+        return try {
+            val transactionResponse = data as? com.example.stockit.network.TransactionHistoryResponse
+            if (transactionResponse?.transactions != null) {
+                Log.d("ProfileViewModel", "Transactions found: ${transactionResponse.transactions.size}")
+                transactionResponse.transactions.map { transaction ->
+                    RecentTransaction(
+                        id = transaction.id.toString(),
+                        symbol = transaction.symbol,
+                        type = transaction.transactionType,
+                        quantity = transaction.quantity,
+                        price = transaction.price,
+                        amount = transaction.totalAmount,
+                        timestamp = transaction.transactionDate
+                    )
+                }.also {
+                    Log.d("ProfileViewModel", "Successfully parsed ${it.size} transactions")
+                }
+            } else {
+                Log.w("ProfileViewModel", "No transactions found in response")
+                emptyList()
+            }
+        } catch (e: Exception) {
+            Log.e("ProfileViewModel", "Failed to parse transactions", e)
+            emptyList()
+        }
+    }
+
+    // Update the portfolio profile update method to use direct response structure
     private fun updateUserProfileWithPortfolio(userProfile: UserProfile?, portfolioData: Any?): UserProfile {
         val baseProfile = userProfile ?: createBasicUserProfile()
         
         return try {
-            val portfolioJson = gson.toJsonTree(portfolioData).asJsonObject
-            val summary = portfolioJson.getAsJsonObject("summary")
-            
-            if (summary != null) {
-                baseProfile.copy(
-                    totalInvested = summary.get("totalInvested")?.asDouble ?: baseProfile.totalInvested,
-                    totalValue = summary.get("totalValue")?.asDouble ?: baseProfile.totalValue,
-                    profitLoss = summary.get("totalProfitLoss")?.asDouble ?: baseProfile.profitLoss,
-                    profitLossPercent = summary.get("totalProfitLossPercent")?.asDouble ?: baseProfile.profitLossPercent,
-                    totalStocks = summary.get("totalStocks")?.asInt ?: baseProfile.totalStocks
+            val portfolioResponse = portfolioData as? com.example.stockit.network.PortfolioResponse
+            if (portfolioResponse != null) {
+                Log.d("ProfileViewModel", "Updating profile with portfolio data")
+                
+                val updatedProfile = baseProfile.copy(
+                    totalInvested = portfolioResponse.totalInvested ?: baseProfile.totalInvested,
+                    totalValue = portfolioResponse.totalCurrentValue ?: baseProfile.totalValue,
+                    profitLoss = portfolioResponse.totalPnL ?: baseProfile.profitLoss,
+                    profitLossPercent = portfolioResponse.totalPnLPercent ?: baseProfile.profitLossPercent,
+                    totalStocks = portfolioResponse.totalHoldings ?: baseProfile.totalStocks
                 )
+                
+                Log.d("ProfileViewModel", "Updated profile: holdings=${updatedProfile.totalStocks}, invested=${updatedProfile.totalInvested}")
+                updatedProfile
             } else {
+                Log.w("ProfileViewModel", "Portfolio data is not in expected format")
                 baseProfile
             }
         } catch (e: Exception) {
+            Log.e("ProfileViewModel", "Failed to update profile with portfolio", e)
             baseProfile
         }
     }
@@ -196,75 +438,6 @@ class ProfileViewModel @Inject constructor(
             totalStocks = 0,
             joinedDate = null
         )
-    }
-
-    private fun parsePortfolioStocks(data: Any?): List<PortfolioStock> {
-        return try {
-            val jsonObject = gson.toJsonTree(data).asJsonObject
-            val stocksArray = jsonObject.getAsJsonArray("stocks")
-            
-            stocksArray?.mapNotNull { stockElement ->
-                try {
-                    val stock = stockElement.asJsonObject
-                    val symbol = stock.get("symbol")?.asString
-                    if (symbol.isNullOrBlank()) return@mapNotNull null
-                    
-                    PortfolioStock(
-                        symbol = symbol,
-                        companyName = stock.get("companyName")?.asString,
-                        quantity = stock.get("quantity")?.asInt ?: 0,
-                        averagePrice = stock.get("averagePrice")?.asDouble ?: 0.0,
-                        currentPrice = stock.get("currentPrice")?.asDouble ?: 0.0,
-                        investedAmount = stock.get("investedAmount")?.asDouble ?: 0.0,
-                        currentValue = stock.get("currentValue")?.asDouble ?: 0.0,
-                        profitLoss = stock.get("profitLoss")?.asDouble ?: 0.0,
-                        profitLossPercent = stock.get("profitLossPercent")?.asDouble ?: 0.0,
-                        firstBuyDate = stock.get("firstBuyDate")?.asString
-                    )
-                } catch (e: Exception) {
-                    null
-                }
-            } ?: emptyList()
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-
-    private fun parseRecentTransactions(data: Any?): List<RecentTransaction> {
-        return try {
-            val jsonObject = gson.toJsonTree(data).asJsonObject
-            val transactionsArray = jsonObject.getAsJsonArray("transactions")
-            
-            transactionsArray?.mapNotNull { transactionElement ->
-                try {
-                    val transaction = transactionElement.asJsonObject
-                    val id = transaction.get("id")?.asString 
-                        ?: transaction.get("transactionId")?.asString 
-                        ?: System.currentTimeMillis().toString()
-                    val symbol = transaction.get("symbol")?.asString
-                    val type = transaction.get("type")?.asString
-                    
-                    if (symbol.isNullOrBlank() || type.isNullOrBlank()) return@mapNotNull null
-                    
-                    RecentTransaction(
-                        id = id,
-                        symbol = symbol,
-                        type = type,
-                        quantity = transaction.get("quantity")?.asInt ?: 0,
-                        price = transaction.get("pricePerShare")?.asDouble 
-                            ?: transaction.get("price")?.asDouble ?: 0.0,
-                        amount = transaction.get("totalAmount")?.asDouble 
-                            ?: transaction.get("amount")?.asDouble ?: 0.0,
-                        timestamp = transaction.get("timestamp")?.asString 
-                            ?: transaction.get("createdAt")?.asString ?: ""
-                    )
-                } catch (e: Exception) {
-                    null
-                }
-            } ?: emptyList()
-        } catch (e: Exception) {
-            emptyList()
-        }
     }
 
     fun clearError() {
