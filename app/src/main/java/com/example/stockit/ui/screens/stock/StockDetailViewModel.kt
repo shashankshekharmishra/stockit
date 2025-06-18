@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.stockit.network.ApiConfig
 import com.example.stockit.network.AffordabilityRequest
 import com.example.stockit.network.TradeRequest
+import com.example.stockit.network.ChartDataResponse
+import com.example.stockit.network.PricePoint
 import com.example.stockit.utils.AuthManager
 import com.google.gson.Gson
 import com.google.gson.JsonObject
@@ -15,6 +17,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.*
 
 data class StockDetailUiState(
     val stockData: StockData? = null,
@@ -110,48 +114,205 @@ class StockDetailViewModel : ViewModel() {
         }
     }
     
+    private fun parseStockData(data: Any?, symbol: String): StockData? {
+        return try {
+            val jsonObject = gson.toJsonTree(data).asJsonObject
+            
+            StockData(
+                symbol = symbol,
+                name = jsonObject.get("longName")?.asString 
+                    ?: jsonObject.get("shortName")?.asString 
+                    ?: jsonObject.get("displayName")?.asString,
+                price = jsonObject.get("regularMarketPrice")?.asDouble 
+                    ?: jsonObject.get("currentPrice")?.asDouble 
+                    ?: jsonObject.get("price")?.asDouble ?: 0.0,
+                change = jsonObject.get("regularMarketChange")?.asDouble
+                    ?: jsonObject.get("change")?.asDouble,
+                changePercent = jsonObject.get("regularMarketChangePercent")?.asDouble
+                    ?: jsonObject.get("changePercent")?.asDouble,
+                open = jsonObject.get("regularMarketOpen")?.asDouble
+                    ?: jsonObject.get("open")?.asDouble,
+                high = jsonObject.get("regularMarketDayHigh")?.asDouble
+                    ?: jsonObject.get("dayHigh")?.asDouble
+                    ?: jsonObject.get("high")?.asDouble,
+                low = jsonObject.get("regularMarketDayLow")?.asDouble
+                    ?: jsonObject.get("dayLow")?.asDouble
+                    ?: jsonObject.get("low")?.asDouble,
+                previousClose = jsonObject.get("regularMarketPreviousClose")?.asDouble
+                    ?: jsonObject.get("previousClose")?.asDouble,
+                volume = jsonObject.get("regularMarketVolume")?.asLong
+                    ?: jsonObject.get("volume")?.asLong
+            )
+        } catch (e: Exception) {
+            null
+        }
+    }
+    
+    private fun parseStockDetails(data: Any?): StockDetails? {
+        return try {
+            val jsonObject = gson.toJsonTree(data).asJsonObject
+            
+            StockDetails(
+                marketCap = jsonObject.get("marketCap")?.asDouble
+                    ?: jsonObject.get("enterpriseValue")?.asDouble,
+                peRatio = jsonObject.get("trailingPE")?.asDouble
+                    ?: jsonObject.get("forwardPE")?.asDouble,
+                eps = jsonObject.get("trailingEps")?.asDouble
+                    ?: jsonObject.get("forwardEps")?.asDouble,
+                dividend = jsonObject.get("dividendYield")?.asDouble,
+                beta = jsonObject.get("beta")?.asDouble,
+                description = jsonObject.get("longBusinessSummary")?.asString
+                    ?: jsonObject.get("description")?.asString
+            )
+        } catch (e: Exception) {
+            null
+        }
+    }
+    
+    // Main function to load historical data
     fun loadHistoricalData(symbol: String, timeFrame: String) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoadingChart = true)
             
             try {
-                val (period, interval) = when (timeFrame) {
-                    "LIVE" -> "1d" to "1m"
-                    "1W" -> "5d" to "5m"
-                    "1M" -> "1mo" to "1d"
-                    "3M" -> "3mo" to "1d"
-                    "6M" -> "6mo" to "1d"
-                    "Y" -> "1y" to "1wk"
-                    "All" -> "5y" to "1mo"
-                    else -> "1mo" to "1d"
+                println("📊 Loading chart data for $symbol with timeFrame: $timeFrame")
+                
+                val response = when (timeFrame) {
+                    "LIVE" -> ApiConfig.stockApiService.getIntradayData(symbol)
+                    "1W" -> ApiConfig.stockApiService.getWeeklyData(symbol)
+                    "1M" -> ApiConfig.stockApiService.getMonthlyData(symbol)
+                    "3M" -> ApiConfig.stockApiService.getQuarterlyData(symbol)
+                    "6M" -> ApiConfig.stockApiService.getHistoricalData(symbol)
+                    "Y" -> ApiConfig.stockApiService.getYearlyData(symbol)
+                    "All" -> ApiConfig.stockApiService.getHistoricalData(symbol)
+                    else -> ApiConfig.stockApiService.getMonthlyData(symbol)
                 }
                 
-                val response = ApiConfig.stockApiService.getHistoricalData(
-                    symbol = symbol,
-                    period = period,
-                    interval = interval
-                )
+                println("📊 API Response success: ${response.success}")
+                println("📊 Prices count: ${response.prices?.size ?: 0}")
                 
-                if (response.success) {
-                    val chartData = parseChartData(response.data)
+                if (response.success && response.prices != null) {
+                    val chartData = parseChartDataFromResponse(response)
+                    
                     _uiState.value = _uiState.value.copy(
                         chartData = chartData,
                         isLoadingChart = false
                     )
+                    
+                    println("📊 Chart data loaded: ${chartData.size} points for $timeFrame")
+                    if (chartData.isNotEmpty()) {
+                        println("📊 First point: price=${chartData.first().price}, timestamp=${chartData.first().timestamp}")
+                        println("📊 Last point: price=${chartData.last().price}, timestamp=${chartData.last().timestamp}")
+                    }
                 } else {
                     _uiState.value = _uiState.value.copy(
                         isLoadingChart = false,
-                        error = "Failed to load chart data"
+                        error = response.error ?: "Failed to load chart data"
                     )
                 }
                 
             } catch (e: Exception) {
+                println("❌ Chart data error: ${e.message}")
+                e.printStackTrace()
+                
                 _uiState.value = _uiState.value.copy(
                     isLoadingChart = false,
                     error = "Failed to load chart data: ${e.message}"
                 )
             }
         }
+    }
+    
+    // Parse from ChartDataResponse (new API structure)
+    private fun parseChartDataFromResponse(response: ChartDataResponse): List<ChartPoint> {
+        return try {
+            val chartPoints = mutableListOf<ChartPoint>()
+            
+            response.prices?.forEach { pricePoint ->
+                try {
+                    val timestamp = parseISOToTimestamp(pricePoint.time)
+                    val price = pricePoint.close // Use closing price for the chart
+                    val volume = pricePoint.volume
+                    
+                    chartPoints.add(ChartPoint(timestamp, price, volume))
+                    
+                } catch (e: Exception) {
+                    println("⚠️ Error parsing price point: ${e.message}")
+                }
+            }
+            
+            println("✅ Successfully parsed ${chartPoints.size} chart points from response")
+            chartPoints.sortedBy { it.timestamp }
+            
+        } catch (e: Exception) {
+            println("❌ Error parsing chart data from response: ${e.message}")
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+    
+    // Fallback parsing function for legacy support
+    private fun parseChartData(data: Any?): List<ChartPoint> {
+        return try {
+            println("🔍 Raw chart data received: $data")
+            println("🔍 Data type: ${data?.javaClass?.simpleName}")
+            
+            // Convert to JSON for easier inspection
+            val dataAsJson = gson.toJson(data)
+            println("🔍 Data as JSON: $dataAsJson")
+            
+            val jsonObject = gson.toJsonTree(data).asJsonObject
+            println("🔍 JSON object keys: ${jsonObject.keySet()}")
+            
+            // Check if this is your API's specific structure with "prices" array
+            if (jsonObject.has("prices")) {
+                println("📊 Found API response with 'prices' array")
+                val pricesArray = jsonObject.getAsJsonArray("prices")
+                return parseApiPricesArray(pricesArray)
+            }
+            
+            // Return empty list for unknown structures
+            println("⚠️ Unknown data structure")
+            emptyList()
+            
+        } catch (e: Exception) {
+            println("❌ Chart parsing error: ${e.message}")
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+    
+    // Helper function to parse prices array from JSON
+    private fun parseApiPricesArray(pricesArray: com.google.gson.JsonArray): List<ChartPoint> {
+        val chartPoints = mutableListOf<ChartPoint>()
+        
+        pricesArray.forEach { element ->
+            try {
+                val priceObject = element.asJsonObject
+                
+                // Handle both old and new formats
+                val timestamp = if (priceObject.has("time")) {
+                    parseISOToTimestamp(priceObject.get("time").asString)
+                } else if (priceObject.has("date")) {
+                    parseDateToTimestamp(priceObject.get("date").asString)
+                } else {
+                    System.currentTimeMillis()
+                }
+                
+                val price = priceObject.get("close").asDouble
+                val volume = if (priceObject.has("volume") && !priceObject.get("volume").isJsonNull) {
+                    priceObject.get("volume").asLong
+                } else null
+                
+                chartPoints.add(ChartPoint(timestamp, price, volume))
+                
+            } catch (e: Exception) {
+                println("⚠️ Error parsing API price object: ${e.message}")
+            }
+        }
+        
+        println("📊 Parsed ${chartPoints.size} points from API prices structure")
+        return chartPoints
     }
     
     // Enhanced trading functions with proper token management
@@ -297,113 +458,6 @@ class StockDetailViewModel : ViewModel() {
             error = errorMessage
         )
     }
-    
-    private fun parseStockData(data: Any?, symbol: String): StockData? {
-        return try {
-            val jsonObject = gson.toJsonTree(data).asJsonObject
-            
-            StockData(
-                symbol = symbol,
-                name = jsonObject.get("longName")?.asString 
-                    ?: jsonObject.get("shortName")?.asString 
-                    ?: jsonObject.get("displayName")?.asString,
-                price = jsonObject.get("regularMarketPrice")?.asDouble 
-                    ?: jsonObject.get("currentPrice")?.asDouble 
-                    ?: jsonObject.get("price")?.asDouble ?: 0.0,
-                change = jsonObject.get("regularMarketChange")?.asDouble
-                    ?: jsonObject.get("change")?.asDouble,
-                changePercent = jsonObject.get("regularMarketChangePercent")?.asDouble
-                    ?: jsonObject.get("changePercent")?.asDouble,
-                open = jsonObject.get("regularMarketOpen")?.asDouble
-                    ?: jsonObject.get("open")?.asDouble,
-                high = jsonObject.get("regularMarketDayHigh")?.asDouble
-                    ?: jsonObject.get("dayHigh")?.asDouble
-                    ?: jsonObject.get("high")?.asDouble,
-                low = jsonObject.get("regularMarketDayLow")?.asDouble
-                    ?: jsonObject.get("dayLow")?.asDouble
-                    ?: jsonObject.get("low")?.asDouble,
-                previousClose = jsonObject.get("regularMarketPreviousClose")?.asDouble
-                    ?: jsonObject.get("previousClose")?.asDouble,
-                volume = jsonObject.get("regularMarketVolume")?.asLong
-                    ?: jsonObject.get("volume")?.asLong
-            )
-        } catch (e: Exception) {
-            null
-        }
-    }
-    
-    private fun parseStockDetails(data: Any?): StockDetails? {
-        return try {
-            val jsonObject = gson.toJsonTree(data).asJsonObject
-            
-            StockDetails(
-                marketCap = jsonObject.get("marketCap")?.asDouble
-                    ?: jsonObject.get("enterpriseValue")?.asDouble,
-                peRatio = jsonObject.get("trailingPE")?.asDouble
-                    ?: jsonObject.get("forwardPE")?.asDouble,
-                eps = jsonObject.get("trailingEps")?.asDouble
-                    ?: jsonObject.get("forwardEps")?.asDouble,
-                dividend = jsonObject.get("dividendYield")?.asDouble,
-                beta = jsonObject.get("beta")?.asDouble,
-                description = jsonObject.get("longBusinessSummary")?.asString
-                    ?: jsonObject.get("description")?.asString
-            )
-        } catch (e: Exception) {
-            null
-        }
-    }
-    
-    private fun parseChartData(data: Any?): List<ChartPoint> {
-        return try {
-            val jsonObject = gson.toJsonTree(data).asJsonObject
-            val result = jsonObject.getAsJsonObject("chart")
-                ?.getAsJsonArray("result")?.get(0)?.asJsonObject
-                
-            val timestamps = result?.getAsJsonArray("timestamp")
-            val quotes = result?.getAsJsonObject("indicators")
-                ?.getAsJsonArray("quote")?.get(0)?.asJsonObject
-                
-            val closes = quotes?.getAsJsonArray("close")
-            val volumes = quotes?.getAsJsonArray("volume")
-            
-            val chartPoints = mutableListOf<ChartPoint>()
-            
-            timestamps?.let { ts ->
-                for (i in 0 until ts.size()) {
-                    val timestamp = ts.get(i).asLong
-                    val price = closes?.get(i)?.let { 
-                        if (it.isJsonNull) null else it.asDouble 
-                    } ?: continue
-                    val volume = volumes?.get(i)?.let { 
-                        if (it.isJsonNull) null else it.asLong 
-                    }
-                    
-                    chartPoints.add(ChartPoint(timestamp, price, volume))
-                }
-            }
-            
-            chartPoints
-        } catch (e: Exception) {
-            // Fallback: generate dummy data for demonstration
-            generateDummyChartData()
-        }
-    }
-    
-    private fun generateDummyChartData(): List<ChartPoint> {
-        val basePrice = 100.0
-        val points = mutableListOf<ChartPoint>()
-        val currentTime = System.currentTimeMillis()
-        
-        for (i in 0 until 30) {
-            val timestamp = currentTime - (29 - i) * 24 * 60 * 60 * 1000L
-            val price = basePrice + (Math.random() - 0.5) * 20
-            val volume = (Math.random() * 1000000).toLong()
-            
-            points.add(ChartPoint(timestamp, price, volume))
-        }
-        
-        return points
-    }
 
     fun clearError() {
         _uiState.value = _uiState.value.copy(error = null)
@@ -415,5 +469,102 @@ class StockDetailViewModel : ViewModel() {
     
     fun clearAffordabilityResult() {
         _uiState.value = _uiState.value.copy(affordabilityResult = null)
+    }
+
+    // Debug function for testing specific endpoint
+    fun debugSpecificEndpoint(symbol: String, timeFrame: String = "1M") {
+        viewModelScope.launch {
+            try {
+                println("🧪 Testing specific endpoint for $symbol with timeFrame: $timeFrame")
+                
+                val response = ApiConfig.stockApiService.getMonthlyData(symbol)
+                
+                println("✅ Response success: ${response.success}")
+                println("📄 Response symbol: ${response.symbol}")
+                println("📄 Response period: ${response.period}")
+                println("📄 Response prices count: ${response.prices?.size}")
+                
+                if (response.success && response.prices != null) {
+                    println("📊 First price point: ${response.prices.firstOrNull()}")
+                    println("📊 Last price point: ${response.prices.lastOrNull()}")
+                    
+                    // Parse the chart data using the new method
+                    val chartData = parseChartDataFromResponse(response)
+                    println("📊 Parsed ${chartData.size} chart points")
+                    
+                    // Update UI with the data for testing
+                    _uiState.value = _uiState.value.copy(
+                        chartData = chartData,
+                        isLoadingChart = false
+                    )
+                } else {
+                    println("❌ No prices data in response")
+                }
+                
+            } catch (e: Exception) {
+                println("❌ Debug test failed: ${e.message}")
+                e.printStackTrace()
+            }
+        }
+    }
+    
+    // Helper functions for date/time parsing
+    private fun parseDateToTimestamp(dateString: String): Long {
+        return try {
+            // Try multiple date formats
+            val formats = listOf(
+                SimpleDateFormat("yyyy-MM-dd", Locale.US),
+                SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US),
+                SimpleDateFormat("MM/dd/yyyy", Locale.US),
+                SimpleDateFormat("dd/MM/yyyy", Locale.US),
+                SimpleDateFormat("yyyy/MM/dd", Locale.US)
+            )
+            
+            for (format in formats) {
+                try {
+                    return format.parse(dateString)?.time ?: System.currentTimeMillis()
+                } catch (e: Exception) {
+                    // Continue to next format
+                }
+            }
+            
+            // If all formats fail, return current time
+            System.currentTimeMillis()
+        } catch (e: Exception) {
+            println("⚠️ Failed to parse date: $dateString, error: ${e.message}")
+            System.currentTimeMillis()
+        }
+    }
+    
+    private fun parseISOToTimestamp(isoString: String): Long {
+        return try {
+            // Handle ISO 8601 format from your API: "2025-06-12T09:55:00.000Z"
+            val formats = listOf(
+                SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US),
+                SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US),
+                SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US),
+                SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US)
+            )
+            
+            for (format in formats) {
+                try {
+                    format.timeZone = TimeZone.getTimeZone("UTC")
+                    val parsed = format.parse(isoString)?.time
+                    if (parsed != null) {
+                        println("📅 Parsed timestamp: $isoString -> $parsed")
+                        return parsed
+                    }
+                } catch (e: Exception) {
+                    // Continue to next format
+                }
+            }
+            
+            // Fallback: try parsing as regular date
+            println("⚠️ Could not parse ISO date: $isoString, using fallback")
+            parseDateToTimestamp(isoString)
+        } catch (e: Exception) {
+            println("⚠️ Failed to parse ISO date: $isoString, error: ${e.message}")
+            System.currentTimeMillis()
+        }
     }
 }

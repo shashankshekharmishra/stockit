@@ -88,19 +88,19 @@ interface StockApiService {
     
     // Historical data endpoints
     @GET("api/stock/{symbol}/intraday")
-    suspend fun getIntradayData(@Path("symbol") symbol: String, @Query("cache") cache: String = "true"): StockResponse
+    suspend fun getIntradayData(@Path("symbol") symbol: String, @Query("cache") cache: String = "true"): ChartDataResponse
     
     @GET("api/stock/{symbol}/weekly")
-    suspend fun getWeeklyData(@Path("symbol") symbol: String, @Query("cache") cache: String = "true"): StockResponse
+    suspend fun getWeeklyData(@Path("symbol") symbol: String, @Query("cache") cache: String = "true"): ChartDataResponse
     
     @GET("api/stock/{symbol}/monthly")
-    suspend fun getMonthlyData(@Path("symbol") symbol: String, @Query("cache") cache: String = "true"): StockResponse
+    suspend fun getMonthlyData(@Path("symbol") symbol: String, @Query("cache") cache: String = "true"): ChartDataResponse
     
     @GET("api/stock/{symbol}/quarterly")
-    suspend fun getQuarterlyData(@Path("symbol") symbol: String, @Query("cache") cache: String = "true"): StockResponse
+    suspend fun getQuarterlyData(@Path("symbol") symbol: String, @Query("cache") cache: String = "true"): ChartDataResponse
     
     @GET("api/stock/{symbol}/yearly")
-    suspend fun getYearlyData(@Path("symbol") symbol: String, @Query("cache") cache: String = "true"): StockResponse
+    suspend fun getYearlyData(@Path("symbol") symbol: String, @Query("cache") cache: String = "true"): ChartDataResponse
     
     @GET("api/stock/{symbol}/historical")
     suspend fun getHistoricalData(
@@ -108,7 +108,7 @@ interface StockApiService {
         @Query("period") period: String = "1mo",
         @Query("interval") interval: String = "1d",
         @Query("cache") cache: String = "true"
-    ): StockResponse
+    ): ChartDataResponse
     
     // Search endpoints
     @GET("api/search")
@@ -332,13 +332,6 @@ data class UserSummaryResponse(
     val timestamp: String? = null
 )
 
-data class AffordabilityResponse(
-    val success: Boolean,
-    val data: Any? = null,
-    val error: String? = null,
-    val timestamp: String? = null
-)
-
 // New response class for trending stocks
 data class TrendingStocksResponse(
     val success: Boolean,
@@ -361,4 +354,39 @@ data class TrendingStock(
     val low: Double? = null,
     val rank: Int? = null,
     val positive: Boolean? = null
+)
+
+// Add specific response classes for chart data
+data class ChartDataResponse(
+    val success: Boolean,
+    val symbol: String? = null,
+    val period: String? = null,
+    val interval: String? = null,
+    val count: Int? = null,
+    val prices: List<PricePoint>? = null,
+    val meta: ChartMeta? = null,
+    val error: String? = null,
+    val timestamp: String? = null
+)
+
+data class PricePoint(
+    val time: String,
+    val open: Double,
+    val high: Double,
+    val low: Double,
+    val close: Double,
+    val volume: Long
+)
+
+data class ChartMeta(
+    val currency: String? = null,
+    val exchange: String? = null,
+    val cached: Boolean? = null
+)
+
+data class AffordabilityResponse(
+    val success: Boolean,
+    val data: Any? = null,
+    val error: String? = null,
+    val timestamp: String? = null
 )

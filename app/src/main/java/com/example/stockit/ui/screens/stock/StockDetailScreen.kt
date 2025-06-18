@@ -18,6 +18,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
@@ -62,10 +63,12 @@ fun StockDetailScreen(
         viewModel.initializeAuth(context)
         startAnimation = true
         viewModel.loadStockData(stockSymbol)
+        viewModel.debugSpecificEndpoint(stockSymbol, "1M")
     }
     
     LaunchedEffect(selectedTimeFrame) {
         if (uiState.stockData != null) {
+            println("🔄 Loading chart data for timeframe: $selectedTimeFrame")
             viewModel.loadHistoricalData(stockSymbol, selectedTimeFrame)
         }
     }
@@ -354,7 +357,7 @@ fun ChartCard(
     isLoading: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val timeFrames = listOf("LIVE", "1W", "1M", "3M", "6M", "Y", "All")
+    val timeFrames = listOf("1W", "1M", "3M", "Y")
     
     Card(
         modifier = modifier
@@ -440,16 +443,48 @@ fun StockChart(
             modifier = modifier,
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = "No chart data available",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color(0xFF64748B)
-            )
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(
+                    Icons.Default.TrendingUp,
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp),
+                    tint = Color(0xFF94A3B8)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "No chart data available",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color(0xFF64748B),
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Try selecting a different time frame",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF94A3B8)
+                )
+            }
         }
         return
     }
     
-    val isPositive = data.lastOrNull()?.price ?: 0.0 >= data.firstOrNull()?.price ?: 0.0
+    // Debug info
+    println("📊 Drawing chart with ${data.size} points")
+    if (data.isNotEmpty()) {
+        val minPrice = data.minOf { it.price }
+        val maxPrice = data.maxOf { it.price }
+        println("📊 Price range: $minPrice - $maxPrice")
+        println("📊 First timestamp: ${data.first().timestamp}")
+        println("📊 Last timestamp: ${data.last().timestamp}")
+    }
+    
+    val isPositive = if (data.size >= 2) {
+        data.last().price >= data.first().price
+    } else {
+        true
+    }
     val chartColor = if (isPositive) Color(0xFF10B981) else Color(0xFFEF4444)
     
     Canvas(modifier = modifier) {
@@ -460,13 +495,67 @@ fun StockChart(
         val chartWidth = width - 2 * padding
         val chartHeight = height - 2 * padding
         
-        if (data.size < 2) return@Canvas
+        if (data.size < 2) {
+            // Draw a single point if we only have one data point
+            if (data.size == 1) {
+                val centerX = width / 2
+                val centerY = height / 2
+                
+                // Draw a circle for single point
+                drawCircle(
+                    color = chartColor,
+                    radius = 8.dp.toPx(),
+                    center = Offset(centerX, centerY)
+                )
+                drawCircle(
+                    color = Color.White,
+                    radius = 4.dp.toPx(),
+                    center = Offset(centerX, centerY)
+                )
+                
+                // Draw horizontal line to show the price level
+                drawLine(
+                    color = chartColor.copy(alpha = 0.5f),
+                    start = Offset(padding, centerY),
+                    end = Offset(width - padding, centerY),
+                    strokeWidth = 2.dp.toPx(),
+                    cap = StrokeCap.Round
+                )
+            }
+            return@Canvas
+        }
         
-        val minPrice = data.minOfOrNull { it.price } ?: 0.0
-        val maxPrice = data.maxOfOrNull { it.price } ?: 0.0
+        val minPrice = data.minOf { it.price }
+        val maxPrice = data.maxOf { it.price }
         val priceRange = maxPrice - minPrice
         
-        if (priceRange == 0.0) return@Canvas
+        if (priceRange == 0.0) {
+            // Draw a horizontal line if all prices are the same
+            val y = height / 2
+            drawLine(
+                color = chartColor,
+                start = Offset(padding, y),
+                end = Offset(width - padding, y),
+                strokeWidth = 3.dp.toPx(),
+                cap = StrokeCap.Round
+            )
+            
+            // Draw points along the line
+            data.forEachIndexed { index, _ ->
+                val x = padding + (index.toFloat() / (data.size - 1)) * chartWidth
+                drawCircle(
+                    color = chartColor,
+                    radius = 3.dp.toPx(),
+                    center = Offset(x, y)
+                )
+                drawCircle(
+                    color = Color.White,
+                    radius = 1.5.dp.toPx(),
+                    center = Offset(x, y)
+                )
+            }
+            return@Canvas
+        }
         
         val points = data.mapIndexed { index, point ->
             val x = padding + (index.toFloat() / (data.size - 1)) * chartWidth
@@ -475,7 +564,7 @@ fun StockChart(
         }
         
         // Draw gradient fill
-        val path = Path().apply {
+        val path = android.graphics.Path().apply {
             moveTo(points.first().x, height - padding)
             points.forEach { point ->
                 lineTo(point.x, point.y)
@@ -485,7 +574,7 @@ fun StockChart(
         }
         
         drawPath(
-            path = path,
+            path = path.asComposePath(),
             brush = Brush.verticalGradient(
                 colors = listOf(
                     chartColor.copy(alpha = 0.3f),
@@ -511,7 +600,13 @@ fun StockChart(
         points.forEach { point ->
             drawCircle(
                 color = chartColor,
-                radius = 2.dp.toPx(),
+                radius = 3.dp.toPx(),
+                center = point
+            )
+            // Draw a white center for better visibility
+            drawCircle(
+                color = Color.White,
+                radius = 1.5.dp.toPx(),
                 center = point
             )
         }
