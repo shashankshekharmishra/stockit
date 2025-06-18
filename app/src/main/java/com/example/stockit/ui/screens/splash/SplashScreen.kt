@@ -22,12 +22,19 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.font.FontFamily
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.stockit.ui.theme.StockItTheme
+import com.example.stockit.utils.AuthManager
 import kotlinx.coroutines.delay
 import kotlin.math.sin
+import javax.inject.Inject
 
 @Composable
-fun SplashScreen(onNavigateToNext: () -> Unit = {}) {
+fun SplashScreen(
+    onNavigateToOnboarding: () -> Unit = {},
+    onNavigateToHome: () -> Unit = {},
+    authManager: AuthManager = hiltViewModel<SplashViewModel>().authManager
+) {
     // Animation states
     var startAnimation by remember { mutableStateOf(false) }
     
@@ -40,7 +47,8 @@ fun SplashScreen(onNavigateToNext: () -> Unit = {}) {
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessLow
-        )
+        ),
+        label = "scale"
     )
     
     val alpha by animateFloatAsState(
@@ -48,7 +56,8 @@ fun SplashScreen(onNavigateToNext: () -> Unit = {}) {
         animationSpec = tween(
             durationMillis = 800,
             delayMillis = 200
-        )
+        ),
+        label = "alpha"
     )
     
     val logoRotation by animateFloatAsState(
@@ -56,7 +65,8 @@ fun SplashScreen(onNavigateToNext: () -> Unit = {}) {
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessMedium
-        )
+        ),
+        label = "logoRotation"
     )
     
     // Pulsing animation for the gradient background
@@ -81,11 +91,17 @@ fun SplashScreen(onNavigateToNext: () -> Unit = {}) {
         label = "loading_progress"
     )
     
-    // Start animation and navigation
+    // Start animation and navigation with auth check
     LaunchedEffect(Unit) {
         startAnimation = true
-        delay(3000) // Slightly longer to appreciate the animations
-        onNavigateToNext()
+        delay(3000) // Show splash for 3 seconds
+        
+        // Check if user is logged in and navigate accordingly
+        if (authManager.hasValidToken()) {
+            onNavigateToHome()
+        } else {
+            onNavigateToOnboarding()
+        }
     }
     
     Box(
@@ -165,7 +181,8 @@ fun SplashScreen(onNavigateToNext: () -> Unit = {}) {
                                 animationSpec = spring(
                                     dampingRatio = Spring.DampingRatioMediumBouncy,
                                     stiffness = Spring.StiffnessMedium
-                                )
+                                ),
+                                label = "icon_scale"
                             ).value
                         )
                 )
@@ -189,7 +206,8 @@ fun SplashScreen(onNavigateToNext: () -> Unit = {}) {
                             animationSpec = tween(
                                 durationMillis = 1000,
                                 delayMillis = 600
-                            )
+                            ),
+                            label = "title_alpha"
                         ).value
                     )
                     .scale(
@@ -197,7 +215,8 @@ fun SplashScreen(onNavigateToNext: () -> Unit = {}) {
                             targetValue = if (startAnimation) 1f else 0.8f,
                             animationSpec = spring(
                                 dampingRatio = Spring.DampingRatioMediumBouncy
-                            )
+                            ),
+                            label = "title_scale"
                         ).value
                     )
             )
@@ -219,13 +238,15 @@ fun SplashScreen(onNavigateToNext: () -> Unit = {}) {
                             animationSpec = tween(
                                 durationMillis = 800,
                                 delayMillis = 1200
-                            )
+                            ),
+                            label = "tagline_alpha"
                         ).value
                     )
                     .offset(
                         y = animateFloatAsState(
                             targetValue = if (startAnimation) 0f else 20f,
-                            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+                            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+                            label = "tagline_offset"
                         ).value.dp
                     )
             )
@@ -241,7 +262,8 @@ fun SplashScreen(onNavigateToNext: () -> Unit = {}) {
                         animationSpec = tween(
                             durationMillis = 600,
                             delayMillis = 1800
-                        )
+                        ),
+                        label = "loading_alpha"
                     ).value
                 )
             ) {

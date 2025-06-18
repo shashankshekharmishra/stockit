@@ -19,8 +19,6 @@ import com.example.stockit.ui.screens.stock.StockDetailScreen
 import com.example.stockit.ui.screens.profile.ProfileScreen
 import com.example.stockit.ui.screens.watchlist.WatchlistScreen
 import com.example.stockit.ui.components.MainScreenWrapper
-import com.example.stockit.data.model.Stock
-import com.example.stockit.utils.AuthManager
 
 @Composable
 fun Navigation(navController: NavHostController) {
@@ -34,12 +32,25 @@ fun Navigation(navController: NavHostController) {
     NavHost(navController = navController, startDestination = "splash") {
         composable("splash") { 
             SplashScreen(
-                onNavigateToNext = { navController.navigate("onboarding") }
+                onNavigateToOnboarding = { 
+                    navController.navigate("onboarding") {
+                        popUpTo("splash") { inclusive = true }
+                    }
+                },
+                onNavigateToHome = { 
+                    navController.navigate("home") {
+                        popUpTo("splash") { inclusive = true }
+                    }
+                }
             ) 
         }
         composable("onboarding") { 
             OnboardingScreen(
-                onSkip = { navController.navigate("home") },
+                onSkip = { 
+                    navController.navigate("home") {
+                        popUpTo("onboarding") { inclusive = true }
+                    }
+                },
                 onSignIn = { navController.navigate("sign_in") },
                 onSignUp = { navController.navigate("sign_up") }
             ) 
@@ -58,7 +69,11 @@ fun Navigation(navController: NavHostController) {
         }
         composable("sign_in_success") { 
             SignInSuccessScreen(
-                onContinue = { navController.navigate("home") }
+                onContinue = { 
+                    navController.navigate("home") {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
             ) 
         }
         composable("home") { 
