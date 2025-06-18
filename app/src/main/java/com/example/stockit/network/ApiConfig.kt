@@ -1,11 +1,53 @@
 package com.example.stockit.network
 
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
+import okhttp3.Response
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.*
+import java.io.IOException
 import java.util.concurrent.TimeUnit
+
+// Custom retry interceptor
+class RetryInterceptor(private val maxRetries: Int = 15) : Interceptor {
+    override fun intercept(chain: Interceptor.Chain): Response {
+        var request = chain.request()
+        var response: Response? = null
+        var exception: IOException? = null
+        
+        for (attempt in 0 until maxRetries) {
+            try {
+                response?.close() // Close previous response if exists
+                response = chain.proceed(request)
+                
+                // If successful response, return it
+                if (response.isSuccessful) {
+                    return response
+                }
+                
+                // For 5xx server errors, retry. For 4xx client errors, don't retry
+                if (response.code < 500) {
+                    return response
+                }
+                
+            } catch (e: IOException) {
+                exception = e
+                if (attempt == maxRetries - 1) {
+                    throw e
+                }
+            }
+            
+            // Wait before retrying (exponential backoff)
+            if (attempt < maxRetries - 1) {
+                Thread.sleep((1000 * Math.pow(2.0, attempt.toDouble())).toLong().coerceAtMost(30000))
+            }
+        }
+        
+        return response ?: throw (exception ?: IOException("Max retries exceeded"))
+    }
+}
 
 object ApiConfig {
     private const val BASE_URL = "https://test.vardhin.tech/"
@@ -14,11 +56,15 @@ object ApiConfig {
         level = HttpLoggingInterceptor.Level.BODY
     }
     
+    private val retryInterceptor = RetryInterceptor(maxRetries = 15)
+    
     private val client = OkHttpClient.Builder()
         .addInterceptor(loggingInterceptor)
+        .addInterceptor(retryInterceptor)
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .writeTimeout(30, TimeUnit.SECONDS)
+        .retryOnConnectionFailure(true) // Enable OkHttp's built-in retry for connection failures
         .build()
     
     val retrofit: Retrofit = Retrofit.Builder()
