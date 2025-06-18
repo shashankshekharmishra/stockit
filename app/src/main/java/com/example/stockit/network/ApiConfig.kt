@@ -11,7 +11,7 @@ import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 // Custom retry interceptor
-class RetryInterceptor(private val maxRetries: Int = 15) : Interceptor {
+class RetryInterceptor(private val maxRetries: Int = 3) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         var request = chain.request()
         var response: Response? = null
@@ -19,15 +19,13 @@ class RetryInterceptor(private val maxRetries: Int = 15) : Interceptor {
         
         for (attempt in 0 until maxRetries) {
             try {
-                response?.close() // Close previous response if exists
+                response?.close()
                 response = chain.proceed(request)
                 
-                // If successful response, return it
                 if (response.isSuccessful) {
                     return response
                 }
                 
-                // For 5xx server errors, retry. For 4xx client errors, don't retry
                 if (response.code < 500) {
                     return response
                 }
@@ -39,9 +37,8 @@ class RetryInterceptor(private val maxRetries: Int = 15) : Interceptor {
                 }
             }
             
-            // Wait before retrying (exponential backoff)
             if (attempt < maxRetries - 1) {
-                Thread.sleep((1000 * Math.pow(2.0, attempt.toDouble())).toLong().coerceAtMost(30000))
+                Thread.sleep((1000 * (attempt + 1)).toLong())
             }
         }
         
@@ -56,7 +53,7 @@ object ApiConfig {
         level = HttpLoggingInterceptor.Level.BODY
     }
     
-    private val retryInterceptor = RetryInterceptor(maxRetries = 15)
+    private val retryInterceptor = RetryInterceptor(maxRetries = 3)
     
     private val client = OkHttpClient.Builder()
         .addInterceptor(loggingInterceptor)
@@ -64,7 +61,7 @@ object ApiConfig {
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .writeTimeout(30, TimeUnit.SECONDS)
-        .retryOnConnectionFailure(true) // Enable OkHttp's built-in retry for connection failures
+        .retryOnConnectionFailure(true)
         .build()
     
     val retrofit: Retrofit = Retrofit.Builder()
@@ -133,7 +130,15 @@ interface StockApiService {
         @Query("cache") cache: String = "true"
     ): StockResponse
     
-    // Popular stocks
+    // Trending stocks (replaces popular)
+    @GET("api/trending")
+    suspend fun getTrendingStocks(
+        @Query("limit") limit: Int = 10,
+        @Query("update") update: String = "false"
+    ): TrendingStocksResponse
+    
+    // Keep popular for backward compatibility (but mark as deprecated)
+    @Deprecated("Use getTrendingStocks instead")
     @GET("api/popular")
     suspend fun getPopularStocks(
         @Query("category") category: String = "nifty50",
@@ -332,4 +337,28 @@ data class AffordabilityResponse(
     val data: Any? = null,
     val error: String? = null,
     val timestamp: String? = null
+)
+
+// New response class for trending stocks
+data class TrendingStocksResponse(
+    val success: Boolean,
+    val count: Int? = null,
+    val source: String? = null,
+    val lastUpdated: String? = null,
+    val cached: Boolean? = null,
+    val stocks: List<TrendingStock>? = null,
+    val timestamp: String? = null
+)
+
+data class TrendingStock(
+    val symbol: String,
+    val name: String?,
+    val price: Double?,
+    val change: Double?,
+    val changePercent: Double?,
+    val volume: Long? = null,
+    val high: Double? = null,
+    val low: Double? = null,
+    val rank: Int? = null,
+    val positive: Boolean? = null
 )

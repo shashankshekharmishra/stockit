@@ -11,13 +11,49 @@ data class HomeUiState(
 data class PortfolioSummary(
     val totalValue: Double,
     val totalInvestment: Double,
-    val availableBalance: Double
+    val availableBalance: Double,
+    val totalShares: Int = 0,
+    val totalProfitLoss: Double = 0.0,
+    val totalProfitLossPercentage: Double = 0.0
 )
 
 data class StockData(
     val symbol: String,
-    val name: String,
+    val name: String?,
     val price: Double,
-    val change: Double,
-    val changePercent: Double
+    val change: Double?,
+    val changePercent: Double?,
+    val marketCap: Double? = null,
+    val volume: Long? = null
+)
+
+// API Response Models
+data class ApiUserSummary(
+    val wallet: WalletData,
+    val portfolio: PortfolioData,
+    val totalProfitLoss: Double,
+    val totalProfitLossPercentage: Double
+)
+
+data class WalletData(
+    val balance: Double,
+    val totalDeposited: Double,
+    val totalWithdrawn: Double
+)
+
+data class PortfolioData(
+    val totalValue: Double,
+    val totalInvestment: Double,
+    val totalShares: Int,
+    val holdings: List<HoldingData>
+)
+
+data class HoldingData(
+    val symbol: String,
+    val quantity: Int,
+    val averagePrice: Double,
+    val currentPrice: Double,
+    val totalValue: Double,
+    val profitLoss: Double,
+    val profitLossPercentage: Double
 )
