@@ -4,6 +4,8 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
+import androidx.navigation.NavType
 import com.example.stockit.ui.screens.splash.SplashScreen
 import com.example.stockit.ui.screens.onboarding.OnboardingScreen
 import com.example.stockit.ui.screens.auth.SignInScreen
@@ -57,20 +59,15 @@ fun Navigation(navController: NavHostController) {
             ) 
         }
         composable("portfolio") { PortfolioScreen() }
-        composable("stock_detail/{stockId}") { backStackEntry ->
-            val stockId = backStackEntry.arguments?.getString("stockId")
-            if (stockId != null) {
-                val defaultStock = Stock(
-                    id = stockId,
-                    name = "Loading...",
-                    symbol = "...",
-                    price = 0.0,
-                    change = 0.0,
-                    marketCap = 0L,
-                    description = "Loading stock details..."
-                )
-                StockDetailScreen(stock = defaultStock)
-            }
+        composable(
+            "stock_detail/{stockSymbol}",
+            arguments = listOf(navArgument("stockSymbol") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val stockSymbol = backStackEntry.arguments?.getString("stockSymbol") ?: ""
+            StockDetailScreen(
+                stockSymbol = stockSymbol,
+                onBackClick = { navController.popBackStack() }
+            )
         }
         composable("profile") { ProfileScreen() }
     }

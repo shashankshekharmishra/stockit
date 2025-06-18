@@ -2,14 +2,32 @@ package com.example.stockit.utils
 
 import android.content.Context
 import android.content.SharedPreferences
-import org.json.JSONObject
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
-class AuthManager(context: Context) {
+class AuthManager(private val context: Context) {
     private val sharedPrefs: SharedPreferences = 
         context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE)
     
+    private val _isLoggedIn = MutableStateFlow(isLoggedIn())
+    val isLoggedInState: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
+    
+    companion object {
+        @Volatile
+        private var INSTANCE: AuthManager? = null
+        
+        fun getInstance(context: Context): AuthManager {
+            return INSTANCE ?: synchronized(this) {
+                INSTANCE ?: AuthManager(context.applicationContext).also { INSTANCE = it }
+            }
+        }
+    }
+    
     fun isLoggedIn(): Boolean {
-        return sharedPrefs.getBoolean("is_logged_in", false)
+        val hasToken = getAccessToken().isNotEmpty()
+        val isValid = sharedPrefs.getBoolean("is_logged_in", false)
+        return hasToken && isValid
     }
     
     fun getAccessToken(): String {
@@ -32,11 +50,17 @@ class AuthManager(context: Context) {
         return sharedPrefs.getString("user_full_name", "") ?: ""
     }
     
+    fun getBearerToken(): String {
+        val token = getAccessToken()
+        return if (token.isNotEmpty()) "Bearer $token" else ""
+    }
+    
     fun logout() {
         with(sharedPrefs.edit()) {
             clear()
             apply()
         }
+        _isLoggedIn.value = false
     }
 
     fun saveUserData(
@@ -53,8 +77,10 @@ class AuthManager(context: Context) {
             putString("user_email", userEmail)
             putString("user_full_name", userFullName)
             putBoolean("is_logged_in", true)
+            putLong("token_timestamp", System.currentTimeMillis())
             apply()
         }
+        _isLoggedIn.value = true
     }
 
     fun updateLoginStatus(isLoggedIn: Boolean) {
@@ -62,5 +88,16 @@ class AuthManager(context: Context) {
             putBoolean("is_logged_in", isLoggedIn)
             apply()
         }
+        _isLoggedIn.value = isLoggedIn
+    }
+    
+    fun isTokenExpired(): Boolean {
+        val timestamp = sharedPrefs.getLong("token_timestamp", 0)
+        val thirtyMinutes = 30 * 60 * 1000L // 30 minutes in milliseconds
+        return (System.currentTimeMillis() - timestamp) > thirtyMinutes
+    }
+    
+    fun hasValidToken(): Boolean {
+        return isLoggedIn() && !isTokenExpired()
     }
 }

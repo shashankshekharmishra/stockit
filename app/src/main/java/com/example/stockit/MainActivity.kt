@@ -11,11 +11,16 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.compose.rememberNavController
 import com.example.stockit.ui.navigation.Navigation
 import com.example.stockit.ui.theme.StockItTheme
+import com.example.stockit.utils.AuthManager
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Initialize AuthManager early
+        AuthManager.getInstance(this)
+
         setContent {
             StockItTheme {
                 Surface(
