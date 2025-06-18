@@ -12,7 +12,7 @@ import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Person // Add this import
+import androidx.compose.material.icons.filled.Login // Change this import
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -287,7 +287,7 @@ fun HomeHeader(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Profile/Guide Button (left side)
+            // Login Button (left side)
             IconButton(
                 onClick = onNavigateToOnboarding,
                 modifier = Modifier
@@ -304,8 +304,8 @@ fun HomeHeader(
                     .shadow(6.dp, CircleShape)
             ) {
                 Icon(
-                    imageVector = androidx.compose.material.icons.Icons.Default.Person,
-                    contentDescription = "Profile Guide",
+                    imageVector = Icons.Default.Login,
+                    contentDescription = "Login / Sign Up",
                     tint = Color.White,
                     modifier = Modifier.size(24.dp)
                 )
@@ -414,18 +414,19 @@ fun EnhancedPortfolioCard(
                         ) {
                             Text(
                                 text = "₹${formatPortfolioNumber(summary.totalValue)}",
-                                style = MaterialTheme.typography.headlineLarge,
+                                style = MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.Black,
                                 color = Color.White,
-                                fontSize = 32.sp,
+                                fontSize = 24.sp,
                                 letterSpacing = (-0.5).sp
                             )
                             Text(
                                 text = "EQUITY",
-                                style = MaterialTheme.typography.bodyLarge,
+                                style = MaterialTheme.typography.bodySmall,
                                 color = Color(0xFFE2E8F0),
                                 fontWeight = FontWeight.Bold,
-                                letterSpacing = 2.sp
+                                letterSpacing = 1.sp,
+                                fontSize = 10.sp
                             )
                         }
 
@@ -433,7 +434,7 @@ fun EnhancedPortfolioCard(
                         Box(
                             modifier = Modifier
                                 .width(2.dp)
-                                .height(70.dp)
+                                .height(60.dp)
                                 .background(
                                     brush = Brush.verticalGradient(
                                         colors = listOf(
@@ -452,18 +453,19 @@ fun EnhancedPortfolioCard(
                         ) {
                             Text(
                                 text = "₹${formatPortfolioNumber(summary.availableBalance)}",
-                                style = MaterialTheme.typography.headlineLarge,
+                                style = MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.Black,
                                 color = Color.White,
-                                fontSize = 32.sp,
+                                fontSize = 24.sp,
                                 letterSpacing = (-0.5).sp
                             )
                             Text(
                                 text = "BALANCE",
-                                style = MaterialTheme.typography.bodyLarge,
+                                style = MaterialTheme.typography.bodySmall,
                                 color = Color(0xFFE2E8F0),
                                 fontWeight = FontWeight.Bold,
-                                letterSpacing = 2.sp
+                                letterSpacing = 1.sp,
+                                fontSize = 10.sp
                             )
                         }
                     }
@@ -475,15 +477,15 @@ fun EnhancedPortfolioCard(
                     ) {
                         Text(
                             text = "₹0.00",
-                            style = MaterialTheme.typography.headlineLarge,
+                            style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Black,
                             color = Color.White,
-                            fontSize = 32.sp,
+                            fontSize = 24.sp,
                             letterSpacing = (-0.5).sp
                         )
                         Text(
                             text = "Start investing today",
-                            style = MaterialTheme.typography.bodyLarge,
+                            style = MaterialTheme.typography.bodyMedium,
                             color = Color(0xFFE2E8F0),
                             fontWeight = FontWeight.Medium,
                             letterSpacing = 0.5.sp
