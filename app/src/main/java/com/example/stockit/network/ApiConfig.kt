@@ -133,8 +133,19 @@ interface StockApiService {
     // Trending stocks (replaces popular)
     @GET("api/trending")
     suspend fun getTrendingStocks(
-        @Query("limit") limit: Int = 10,
-        @Query("update") update: String = "false"
+        @Query("limit") limit: Int = 30,
+        @Query("update") update: String = "false",
+        @Query("force") force: String = "false"
+    ): TrendingStocksResponse
+    
+    @POST("api/trending/update")
+    suspend fun updateTrendingStocks(
+        @Header("Authorization") token: String
+    ): TrendingStocksResponse
+    
+    @GET("api/trending/scrape")
+    suspend fun scrapeTrendingStocks(
+        @Header("Authorization") token: String
     ): TrendingStocksResponse
     
     // Keep popular for backward compatibility (but mark as deprecated)
@@ -230,6 +241,13 @@ interface StockApiService {
         @Header("Authorization") token: String,
         @Path("symbol") symbol: String
     ): WatchlistActionResponse
+
+    // Add the missing holdings endpoint
+    @GET("api/user/holdings/{symbol}")
+    suspend fun getUserStockHolding(
+        @Header("Authorization") token: String,
+        @Path("symbol") symbol: String
+    ): UserHoldingResponse
 }
 
 // Auth API Service Interface
@@ -357,15 +375,32 @@ data class UserSummaryResponse(
     val timestamp: String? = null
 )
 
-// New response class for trending stocks
+data class UserHoldingResponse(
+    val success: Boolean,
+    val symbol: String?,
+    val owns: Boolean?,
+    val quantity: Int?,
+    val averagePrice: Double?,
+    val investedAmount: Double?,
+    val currentPrice: Double?,
+    val currentValue: Double?,
+    val profitLoss: Double?,
+    val firstBuyDate: String?,
+    val message: String?,
+    val error: String?,
+    val timestamp: String?
+)
+
+// Updated response class for trending stocks
 data class TrendingStocksResponse(
     val success: Boolean,
-    val count: Int? = null,
-    val source: String? = null,
-    val lastUpdated: String? = null,
-    val cached: Boolean? = null,
-    val stocks: List<TrendingStock>? = null,
-    val timestamp: String? = null
+    val count: Int?,
+    val source: String?,
+    val lastUpdated: String?,
+    val cached: Boolean?,
+    val stocks: List<TrendingStock>?,
+    val error: String?,
+    val timestamp: String?
 )
 
 data class TrendingStock(
@@ -374,11 +409,11 @@ data class TrendingStock(
     val price: Double?,
     val change: Double?,
     val changePercent: Double?,
-    val volume: Long? = null,
-    val high: Double? = null,
-    val low: Double? = null,
-    val rank: Int? = null,
-    val positive: Boolean? = null
+    val volume: Long?,
+    val high: Double?,
+    val low: Double?,
+    val rank: Int?,
+    val positive: Boolean?
 )
 
 // Add specific response classes for chart data

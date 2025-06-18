@@ -36,6 +36,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.geometry.Offset
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,23 +52,20 @@ fun HomeScreen(
     val scope = rememberCoroutineScope()
     
     // Animation states
-    val infiniteTransition = rememberInfiniteTransition(label = "home_animations")
-    
-    val backgroundPulse by infiniteTransition.animateFloat(
-        initialValue = 0.8f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(4000, easing = EaseInOutSine),
-            repeatMode = RepeatMode.Reverse
+    val headerOffset by animateFloatAsState(
+        targetValue = if (startAnimation) 0f else -200f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
         ),
-        label = "background_pulse"
+        label = "header_offset"
     )
     
     val contentAlpha by animateFloatAsState(
         targetValue = if (startAnimation) 1f else 0f,
         animationSpec = tween(
-            durationMillis = 800,
-            delayMillis = 200
+            durationMillis = 1200,
+            easing = FastOutSlowInEasing
         ),
         label = "content_alpha"
     )
@@ -81,30 +79,9 @@ fun HomeScreen(
         label = "content_scale"
     )
 
-    // Floating particles animation
-    val particleOffsets = remember {
-        (0..12).map {
-            Animatable((-50f + it * 20f))
-        }
-    }
-
     LaunchedEffect(Unit) {
+        delay(100)
         startAnimation = true
-        // Animate floating particles
-        particleOffsets.forEachIndexed { index, animatable ->
-            scope.launch {
-                animatable.animateTo(
-                    targetValue = animatable.value + (20f + index * 5f),
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(
-                            durationMillis = 3000 + index * 200,
-                            easing = EaseInOutSine
-                        ),
-                        repeatMode = RepeatMode.Reverse
-                    )
-                )
-            }
-        }
     }
     
     // Get auth token and set it in ViewModel
@@ -131,162 +108,245 @@ fun HomeScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(
-                brush = Brush.radialGradient(
+                brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFFF8FAFC).copy(alpha = backgroundPulse),
-                        Color(0xFFF1F5F9),
-                        Color(0xFFE2E8F0),
-                        Color(0xFFCBD5E1)
-                    ),
-                    radius = 1200f
+                        Color(0xFF1A1A2E),
+                        Color(0xFF16213E),
+                        Color(0xFF0F172A)
+                    )
                 )
             )
     ) {
-        // Enhanced decorative floating particles (similar to onboarding)
-        particleOffsets.forEachIndexed { index, offset ->
-            Box(
-                modifier = Modifier
-                    .offset(
-                        x = (30 * (index - 6)).dp,
-                        y = offset.value.dp
-                    )
-                    .size((3 + index % 4).dp)
-                    .background(
-                        Color(0xFF6366F1).copy(alpha = 0.08f + index * 0.01f),
-                        CircleShape
-                    )
-                    .graphicsLayer {
-                        rotationZ = offset.value * 0.5f
-                    }
+        // Background decoration (same as watchlist)
+        androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
+            val centerX = size.width / 2
+            val centerY = size.height / 3
+            
+            drawCircle(
+                color = Color.White.copy(alpha = 0.02f),
+                radius = size.width * 0.6f,
+                center = Offset(centerX - size.width * 0.3f, centerY - 100.dp.toPx())
+            )
+            drawCircle(
+                color = Color.White.copy(alpha = 0.015f),
+                radius = size.width * 0.8f,
+                center = Offset(centerX + size.width * 0.2f, centerY + 200.dp.toPx())
             )
         }
 
-        // Additional background particles effect (like onboarding)
-        repeat(8) { index ->
-            Box(
-                modifier = Modifier
-                    .offset(
-                        x = (60 * (index - 4)).dp,
-                        y = (-150 + 50 * index).dp
-                    )
-                    .size(4.dp)
-                    .background(
-                        Color(0xFF6366F1).copy(alpha = 0.1f),
-                        RoundedCornerShape(2.dp)
-                    )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = 60.dp)
+        ) {
+            // Header
+            HomeHeader(
+                onSearchClick = onSearchClick,
+                onRefresh = { viewModel.loadData() },
+                isRefreshing = uiState.isLoadingStocks || uiState.isLoadingPortfolio,
+                modifier = Modifier.offset(y = headerOffset.dp)
             )
-        }
-
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = {
-                        Text(
-                            "StockIt",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Black,
-                            color = Color.White,
-                            modifier = Modifier.fillMaxWidth(),
-                            textAlign = TextAlign.Center,
-                            letterSpacing = 1.5.sp,
-                            fontSize = 24.sp
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = { /* Handle menu */ }) {
-                            Icon(
-                                Icons.Default.Menu,
-                                contentDescription = "Menu",
-                                tint = Color.White
-                            )
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = onSearchClick) {
-                            Icon(
-                                Icons.Default.Search,
-                                contentDescription = "Search",
-                                tint = Color.White
-                            )
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Transparent
-                    ),
-                    modifier = Modifier
-                        .background(
-                            brush = Brush.linearGradient(
-                                colors = listOf(
-                                    Color(0xFF6366F1),
-                                    Color(0xFF8B5CF6),
-                                    Color(0xFFA855F7)
-                                )
-                            )
-                        )
-                        .shadow(
-                            elevation = 8.dp,
-                            ambientColor = Color(0xFF6366F1).copy(alpha = 0.4f),
-                            spotColor = Color(0xFF8B5CF6).copy(alpha = 0.4f)
-                        )
-                )
-            },
-            snackbarHost = {
-                SnackbarHost(hostState = snackbarHostState)
-            },
-            containerColor = Color.Transparent
-        ) { innerPadding ->
-            LazyColumn(
+            
+            // Content
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(innerPadding)
-                    .scale(contentScale)
-                    .alpha(contentAlpha),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                    .graphicsLayer(
+                        alpha = contentAlpha,
+                        scaleX = contentScale,
+                        scaleY = contentScale
+                    )
             ) {
-                // Portfolio Card with Enhanced Design
-                item {
-                    EnhancedPortfolioCard(
-                        summary = uiState.portfolioSummary,
-                        isLoading = uiState.isLoadingPortfolio
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    contentPadding = PaddingValues(16.dp)
+                ) {
+                    // Portfolio Card with Enhanced Design
+                    item {
+                        EnhancedPortfolioCard(
+                            summary = uiState.portfolioSummary,
+                            isLoading = uiState.isLoadingPortfolio
+                        )
+                    }
+
+                    // Stock List Header
+                    item {
+                        Text(
+                            text = "Trending Stocks",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
+                            letterSpacing = 0.5.sp
+                        )
+                    }
+
+                    // Stock List
+                    when {
+                        uiState.isLoadingStocks -> {
+                            items(5) {
+                                EnhancedStockItemShimmer()
+                            }
+                        }
+                        uiState.trendingStocks.isNotEmpty() -> {
+                            items(uiState.trendingStocks) { stock ->
+                                EnhancedStockListItem(
+                                    stock = stock,
+                                    onClick = { onStockClick(stock.symbol) }
+                                )
+                            }
+                        }
+                        else -> {
+                            item {
+                                EnhancedEmptyState(onRetry = { viewModel.retry() })
+                            }
+                        }
+                    }
+
+                    item {
+                        Spacer(modifier = Modifier.height(100.dp))
+                    }
+                }
+            }
+        }
+        
+        // Snackbar
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            SnackbarHost(hostState = snackbarHostState)
+        }
+    }
+}
+
+@Composable
+fun HomeHeader(
+    onSearchClick: () -> Unit,
+    onRefresh: () -> Unit,
+    isRefreshing: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(120.dp)
+                .background(
+                    color = Color(0xFF1E293B).copy(alpha = 0.9f),
+                    shape = RoundedCornerShape(28.dp)
+                )
+                .clip(RoundedCornerShape(28.dp))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                Color.White.copy(alpha = 0.1f),
+                                Color.White.copy(alpha = 0.02f)
+                            ),
+                            start = Offset(0f, 0f),
+                            end = Offset(1000f, 1000f)
+                        )
                     )
-                }
-
-                // Stock List Header
-                item {
-                    Text(
-                        text = "Trending Stocks",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F172A),
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-                        letterSpacing = 0.5.sp
+            )
+        }
+        
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(
+                onClick = { /* Handle menu */ },
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(
+                        color = Color(0xFF334155).copy(alpha = 0.8f),
+                        shape = CircleShape
                     )
+            ) {
+                Icon(
+                    Icons.Default.Menu,
+                    contentDescription = "Menu",
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            
+            Column(
+                modifier = Modifier.weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "StockIt",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    letterSpacing = 1.5.sp,
+                    fontSize = 24.sp
+                )
+                Text(
+                    text = "Dashboard",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color(0xFFE2E8F0),
+                    fontSize = 14.sp
+                )
+            }
+            
+            Row {
+                IconButton(
+                    onClick = onRefresh,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(
+                            color = Color(0xFF334155).copy(alpha = 0.8f),
+                            shape = CircleShape
+                        )
+                ) {
+                    if (isRefreshing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            Icons.Default.Refresh,
+                            contentDescription = "Refresh",
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
-
-                // Stock List
-                when {
-                    uiState.isLoadingStocks -> {
-                        items(5) {
-                            EnhancedStockItemShimmer()
-                        }
-                    }
-                    uiState.trendingStocks.isNotEmpty() -> {
-                        items(uiState.trendingStocks) { stock ->
-                            EnhancedStockListItem(
-                                stock = stock,
-                                onClick = { onStockClick(stock.symbol) }
-                            )
-                        }
-                    }
-                    else -> {
-                        item {
-                            EnhancedEmptyState(onRetry = { viewModel.retry() })
-                        }
-                    }
-                }
-
-                item {
-                    Spacer(modifier = Modifier.height(120.dp)) // Increased from 100.dp to account for floating nav bar
+                
+                Spacer(modifier = Modifier.width(8.dp))
+                
+                IconButton(
+                    onClick = onSearchClick,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(
+                            color = Color(0xFF334155).copy(alpha = 0.8f),
+                            shape = CircleShape
+                        )
+                ) {
+                    Icon(
+                        Icons.Default.Search,
+                        contentDescription = "Search",
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
                 }
             }
         }
@@ -300,85 +360,109 @@ fun EnhancedPortfolioCard(
 ) {
     Card(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(20.dp)
-            .shadow(
-                elevation = 12.dp,
-                shape = RoundedCornerShape(24.dp),
-                ambientColor = Color(0xFF6366F1).copy(alpha = 0.4f),
-                spotColor = Color(0xFF8B5CF6).copy(alpha = 0.4f)
-            ),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFF1E293B).copy(alpha = 0.95f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    brush = Brush.linearGradient(
-                        colors = listOf(
-                            Color(0xFF6366F1),
-                            Color(0xFF8B5CF6),
-                            Color(0xFFA855F7)
-                        ),
-                        start = androidx.compose.ui.geometry.Offset(0f, 0f),
-                        end = androidx.compose.ui.geometry.Offset(1000f, 1000f)
-                    ),
-                    shape = RoundedCornerShape(24.dp)
-                )
-                .padding(28.dp)
-        ) {
-            if (isLoading) {
-                EnhancedPortfolioShimmer()
-            } else if (summary != null) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    // Equity Column
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
+        Box {
+            // Glass morphism background
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                Color.White.copy(alpha = 0.08f),
+                                Color.White.copy(alpha = 0.02f)
+                            ),
+                            start = Offset(0f, 0f),
+                            end = Offset(1000f, 1000f)
+                        )
+                    )
+            )
+            
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(28.dp)
+            ) {
+                if (isLoading) {
+                    EnhancedPortfolioShimmer()
+                } else if (summary != null) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        Text(
-                            text = "₹${formatPortfolioNumber(summary.totalValue)}",
-                            style = MaterialTheme.typography.headlineLarge,
-                            fontWeight = FontWeight.Black,
-                            color = Color.White,
-                            fontSize = 32.sp,
-                            letterSpacing = (-0.5).sp
-                        )
-                        Text(
-                            text = "EQUITY",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = Color.White.copy(alpha = 0.9f),
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 2.sp
-                        )
-                    }
-
-                    // Enhanced Divider
-                    Box(
-                        modifier = Modifier
-                            .width(2.dp)
-                            .height(70.dp)
-                            .background(
-                                brush = Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color.White.copy(alpha = 0.1f),
-                                        Color.White.copy(alpha = 0.5f),
-                                        Color.White.copy(alpha = 0.1f)
-                                    )
-                                ),
-                                shape = RoundedCornerShape(1.dp)
+                        // Equity Column
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "₹${formatPortfolioNumber(summary.totalValue)}",
+                                style = MaterialTheme.typography.headlineLarge,
+                                fontWeight = FontWeight.Black,
+                                color = Color.White,
+                                fontSize = 32.sp,
+                                letterSpacing = (-0.5).sp
                             )
-                    )
+                            Text(
+                                text = "EQUITY",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = Color(0xFFE2E8F0),
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 2.sp
+                            )
+                        }
 
-                    // Balance Column
+                        // Enhanced Divider
+                        Box(
+                            modifier = Modifier
+                                .width(2.dp)
+                                .height(70.dp)
+                                .background(
+                                    brush = Brush.verticalGradient(
+                                        colors = listOf(
+                                            Color.White.copy(alpha = 0.1f),
+                                            Color.White.copy(alpha = 0.3f),
+                                            Color.White.copy(alpha = 0.1f)
+                                        )
+                                    ),
+                                    shape = RoundedCornerShape(1.dp)
+                                )
+                        )
+
+                        // Balance Column
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "₹${formatPortfolioNumber(summary.availableBalance)}",
+                                style = MaterialTheme.typography.headlineLarge,
+                                fontWeight = FontWeight.Black,
+                                color = Color.White,
+                                fontSize = 32.sp,
+                                letterSpacing = (-0.5).sp
+                            )
+                            Text(
+                                text = "BALANCE",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = Color(0xFFE2E8F0),
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 2.sp
+                            )
+                        }
+                    }
+                } else {
+                    // Enhanced Empty state
                     Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = "₹${formatPortfolioNumber(summary.availableBalance)}",
+                            text = "₹0.00",
                             style = MaterialTheme.typography.headlineLarge,
                             fontWeight = FontWeight.Black,
                             color = Color.White,
@@ -386,35 +470,13 @@ fun EnhancedPortfolioCard(
                             letterSpacing = (-0.5).sp
                         )
                         Text(
-                            text = "BALANCE",
+                            text = "Start investing today",
                             style = MaterialTheme.typography.bodyLarge,
-                            color = Color.White.copy(alpha = 0.9f),
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 2.sp
+                            color = Color(0xFFE2E8F0),
+                            fontWeight = FontWeight.Medium,
+                            letterSpacing = 0.5.sp
                         )
                     }
-                }
-            } else {
-                // Enhanced Empty state
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = "₹0.00",
-                        style = MaterialTheme.typography.headlineLarge,
-                        fontWeight = FontWeight.Black,
-                        color = Color.White,
-                        fontSize = 32.sp,
-                        letterSpacing = (-0.5).sp
-                    )
-                    Text(
-                        text = "Start investing today",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = Color.White.copy(alpha = 0.9f),
-                        fontWeight = FontWeight.Medium,
-                        letterSpacing = 0.5.sp
-                    )
                 }
             }
         }
@@ -428,114 +490,150 @@ fun EnhancedStockListItem(
 ) {
     Card(
         onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 4.dp)
-            .shadow(
-                elevation = 4.dp,
-                shape = RoundedCornerShape(16.dp),
-                ambientColor = Color.Black.copy(alpha = 0.03f)
-            ),
+        modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = Color(0xFF1E293B).copy(alpha = 0.95f)
         ),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Enhanced Stock Icon
+        Box {
+            // Glass morphism background
             Box(
                 modifier = Modifier
-                    .size(48.dp)
-                    .shadow(
-                        elevation = 3.dp,
-                        shape = CircleShape,
-                        ambientColor = getStockIconColor(stock.symbol).copy(alpha = 0.1f)
-                    )
+                    .fillMaxSize()
                     .background(
-                        brush = Brush.radialGradient(
+                        brush = Brush.linearGradient(
                             colors = listOf(
-                                getStockIconColor(stock.symbol),
-                                getStockIconColor(stock.symbol).copy(alpha = 0.8f)
-                            )
-                        ),
-                        shape = CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = getStockIcon(stock.symbol),
-                    color = Color.White,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            // Stock Info
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = stock.symbol,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF0F172A),
-                    letterSpacing = 0.5.sp
-                )
-                Text(
-                    text = stock.name ?: stock.symbol,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFF64748B),
-                    fontWeight = FontWeight.Medium
-                )
-            }
-
-            // Price and Change
-            Column(
-                horizontalAlignment = Alignment.End
-            ) {
-                Text(
-                    text = "₹ ${formatPrice(stock.price)}",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF0F172A),
-                    letterSpacing = 0.5.sp
-                )
-
-                val change = stock.change ?: 0.0
-                val changePercent = stock.changePercent ?: 0.0
-                val isPositive = change >= 0
-                val changeColor = if (isPositive) Color(0xFF10B981) else Color(0xFFEF4444)
-
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = changeColor.copy(alpha = 0.1f)
-                    ),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (isPositive) Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
-                            contentDescription = null,
-                            tint = changeColor,
-                            modifier = Modifier.size(14.dp)
+                                Color.White.copy(alpha = 0.08f),
+                                Color.White.copy(alpha = 0.02f)
+                            ),
+                            start = Offset(0f, 0f),
+                            end = Offset(1000f, 1000f)
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
+                    )
+            )
+            
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Enhanced Stock Icon with rank if available
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .background(
+                            color = getStockIconColor(stock.symbol).copy(alpha = 0.2f),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
                         Text(
-                            text = "${if (isPositive) "+" else ""}${String.format("%.2f", changePercent)}%",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = changeColor,
+                            text = getStockIcon(stock.symbol),
+                            color = getStockIconColor(stock.symbol),
+                            fontSize = 18.sp,
                             fontWeight = FontWeight.Bold
+                        )
+                        // Show rank if available
+                        stock.rank?.let { rank ->
+                            Text(
+                                text = "#$rank",
+                                color = getStockIconColor(stock.symbol).copy(alpha = 0.8f),
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                // Stock Info with additional details
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = stock.symbol,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        letterSpacing = 0.5.sp
+                    )
+                    Text(
+                        text = stock.name ?: stock.symbol,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xFF94A3B8),
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1
+                    )
+                    
+                    // Show volume if available
+                    stock.volume?.let { volume ->
+                        Text(
+                            text = "Vol: ${formatVolume(volume)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFF64748B),
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+
+                // Price and Change with High/Low if available
+                Column(
+                    horizontalAlignment = Alignment.End
+                ) {
+                    Text(
+                        text = "₹ ${formatPrice(stock.price)}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        letterSpacing = 0.5.sp
+                    )
+
+                    val change = stock.change ?: 0.0
+                    val changePercent = stock.changePercent ?: 0.0
+                    val isPositive = stock.positive ?: (change >= 0)
+                    val changeColor = if (isPositive) Color(0xFF10B981) else Color(0xFFEF4444)
+
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = changeColor.copy(alpha = 0.1f)
+                        ),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isPositive) Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
+                                contentDescription = null,
+                                tint = changeColor,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "${if (isPositive) "+" else ""}${String.format("%.2f", changePercent)}%",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = changeColor,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                    
+                    // Show High/Low if available
+                    if (stock.high != null && stock.low != null) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "H: ₹${formatPrice(stock.high)} L: ₹${formatPrice(stock.low)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFF64748B),
+                            fontSize = 10.sp
                         )
                     }
                 }
@@ -547,16 +645,11 @@ fun EnhancedStockListItem(
 @Composable
 fun EnhancedStockItemShimmer() {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 4.dp)
-            .shadow(
-                elevation = 2.dp,
-                shape = RoundedCornerShape(16.dp),
-                ambientColor = Color.Black.copy(alpha = 0.02f)
-            ),
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFF1E293B).copy(alpha = 0.95f)
+        )
     ) {
         Row(
             modifier = Modifier
@@ -568,7 +661,7 @@ fun EnhancedStockItemShimmer() {
                 modifier = Modifier
                     .size(48.dp)
                     .background(
-                        Color(0xFFF1F5F9),
+                        Color.White.copy(alpha = 0.1f),
                         CircleShape
                     )
             )
@@ -581,7 +674,7 @@ fun EnhancedStockItemShimmer() {
                         .width(100.dp)
                         .height(18.dp)
                         .background(
-                            Color(0xFFF1F5F9),
+                            Color.White.copy(alpha = 0.1f),
                             RoundedCornerShape(9.dp)
                         )
                 )
@@ -591,7 +684,7 @@ fun EnhancedStockItemShimmer() {
                         .width(140.dp)
                         .height(14.dp)
                         .background(
-                            Color(0xFFF8FAFC),
+                            Color.White.copy(alpha = 0.05f),
                             RoundedCornerShape(7.dp)
                         )
                 )
@@ -603,7 +696,7 @@ fun EnhancedStockItemShimmer() {
                         .width(80.dp)
                         .height(18.dp)
                         .background(
-                            Color(0xFFF1F5F9),
+                            Color.White.copy(alpha = 0.1f),
                             RoundedCornerShape(9.dp)
                         )
                 )
@@ -613,7 +706,7 @@ fun EnhancedStockItemShimmer() {
                         .width(60.dp)
                         .height(28.dp)
                         .background(
-                            Color(0xFFF8FAFC),
+                            Color.White.copy(alpha = 0.05f),
                             RoundedCornerShape(14.dp)
                         )
                 )
@@ -636,7 +729,7 @@ fun EnhancedPortfolioShimmer() {
                     .width(120.dp)
                     .height(36.dp)
                     .background(
-                        Color.White.copy(alpha = 0.2f),
+                        Color.White.copy(alpha = 0.1f),
                         RoundedCornerShape(8.dp)
                     )
             )
@@ -646,7 +739,7 @@ fun EnhancedPortfolioShimmer() {
                     .width(80.dp)
                     .height(20.dp)
                     .background(
-                        Color.White.copy(alpha = 0.15f),
+                        Color.White.copy(alpha = 0.05f),
                         RoundedCornerShape(6.dp)
                     )
             )
@@ -656,7 +749,7 @@ fun EnhancedPortfolioShimmer() {
             modifier = Modifier
                 .width(2.dp)
                 .height(70.dp)
-                .background(Color.White.copy(alpha = 0.2f))
+                .background(Color.White.copy(alpha = 0.1f))
         )
 
         Column(
@@ -667,7 +760,7 @@ fun EnhancedPortfolioShimmer() {
                     .width(120.dp)
                     .height(36.dp)
                     .background(
-                        Color.White.copy(alpha = 0.2f),
+                        Color.White.copy(alpha = 0.1f),
                         RoundedCornerShape(8.dp)
                     )
             )
@@ -677,7 +770,7 @@ fun EnhancedPortfolioShimmer() {
                     .width(90.dp)
                     .height(20.dp)
                     .background(
-                        Color.White.copy(alpha = 0.15f),
+                        Color.White.copy(alpha = 0.05f),
                         RoundedCornerShape(6.dp)
                     )
             )
@@ -688,18 +781,12 @@ fun EnhancedPortfolioShimmer() {
 @Composable
 fun EnhancedEmptyState(onRetry: () -> Unit) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(20.dp)
-            .shadow(
-                elevation = 8.dp,
-                shape = RoundedCornerShape(20.dp),
-                ambientColor = Color(0xFF6366F1).copy(alpha = 0.1f),
-                spotColor = Color(0xFF8B5CF6).copy(alpha = 0.1f)
-            ),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFF1E293B).copy(alpha = 0.95f)
+        ),
         shape = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {
         Column(
             modifier = Modifier
@@ -716,48 +803,28 @@ fun EnhancedEmptyState(onRetry: () -> Unit) {
                 text = "No stocks available",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF0F172A)
+                color = Color.White
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Check your connection and try again",
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color(0xFF64748B),
+                color = Color(0xFF94A3B8),
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(24.dp))
             Button(
                 onClick = onRetry,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.Transparent
+                    containerColor = Color(0xFF6366F1)
                 ),
-                modifier = Modifier.shadow(
-                    elevation = 8.dp,
-                    shape = RoundedCornerShape(20.dp),
-                    ambientColor = Color(0xFF6366F1).copy(alpha = 0.4f),
-                    spotColor = Color(0xFF8B5CF6).copy(alpha = 0.4f)
-                )
+                shape = RoundedCornerShape(12.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .background(
-                            brush = Brush.linearGradient(
-                                colors = listOf(
-                                    Color(0xFF6366F1),
-                                    Color(0xFF8B5CF6),
-                                    Color(0xFFA855F7)
-                                )
-                            ),
-                            shape = RoundedCornerShape(20.dp)
-                        )
-                        .padding(horizontal = 16.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = "Retry",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                Text(
+                    text = "Retry",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }
@@ -833,5 +900,15 @@ fun getStockIconColor(symbol: String): Color {
         "ULTRACEMCO" -> Color(0xFF808080)
         "NESTLEIND" -> Color(0xFFFF0000)
         else -> Color(0xFF6366F1)
+    }
+}
+
+// Add volume formatting utility function
+fun formatVolume(volume: Long): String {
+    return when {
+        volume >= 1_00_00_000 -> String.format("%.1fCr", volume / 1_00_00_000.0)
+        volume >= 1_00_000 -> String.format("%.1fL", volume / 1_00_000.0)
+        volume >= 1_000 -> String.format("%.1fK", volume / 1_000.0)
+        else -> volume.toString()
     }
 }

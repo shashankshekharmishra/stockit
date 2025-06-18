@@ -24,10 +24,14 @@ data class StockData(
     val change: Double?,
     val changePercent: Double?,
     val marketCap: Double? = null,
-    val volume: Long? = null
+    val volume: Long? = null,
+    val high: Double? = null,
+    val low: Double? = null,
+    val rank: Int? = null,
+    val positive: Boolean? = null
 )
 
-// API Response Models
+// API Response Models - Updated to match ApiConfig
 data class ApiUserSummary(
     val wallet: WalletData,
     val portfolio: PortfolioData,
@@ -56,4 +60,29 @@ data class HoldingData(
     val totalValue: Double,
     val profitLoss: Double,
     val profitLossPercentage: Double
+)
+
+// Updated TrendingStocks response models to match ApiConfig
+data class TrendingStocksApiResponse(
+    val success: Boolean,
+    val count: Int?,
+    val source: String?,
+    val lastUpdated: String?,
+    val cached: Boolean?,
+    val stocks: List<TrendingStockApi>?,
+    val error: String?,
+    val timestamp: String?
+)
+
+data class TrendingStockApi(
+    val symbol: String,
+    val name: String?,
+    val price: Double?,
+    val change: Double?,
+    val changePercent: Double?,
+    val volume: Long?,
+    val high: Double?,
+    val low: Double?,
+    val rank: Int?,
+    val positive: Boolean?
 )

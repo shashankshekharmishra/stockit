@@ -28,7 +28,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 
 import androidx.compose.ui.geometry.Offset
-import com.example.stockit.data.model.WatchlistStock
+import com.example.stockit.network.WatchlistStock
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)

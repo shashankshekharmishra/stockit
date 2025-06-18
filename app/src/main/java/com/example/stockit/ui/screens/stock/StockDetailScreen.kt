@@ -117,6 +117,13 @@ fun StockDetailScreen(
                 message = message,
                 duration = SnackbarDuration.Short
             )
+            
+            // Reload holdings after successful trade
+            if (message.contains("bought") || message.contains("sold")) {
+                delay(1000) // Small delay to ensure backend is updated
+                viewModel.loadUserHolding(stockSymbol)
+            }
+            
             delay(2000)
             viewModel.clearSuccessMessage()
         }
@@ -269,6 +276,23 @@ fun StockDetailScreen(
                             scaleY = cardsScale
                         )
                 )
+            }
+            
+            // User Holdings (if authenticated and has holdings)
+            if (uiState.isAuthenticated) {
+                item {
+                    AccessibleHoldingsCard(
+                        userHolding = uiState.userHolding,
+                        isLoading = uiState.isLoadingHolding,
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp)
+                            .graphicsLayer(
+                                alpha = contentAlpha,
+                                scaleX = cardsScale,
+                                scaleY = cardsScale
+                            )
+                    )
+                }
             }
             
             // Accessible Trading Buttons
@@ -1268,6 +1292,163 @@ fun AccessibleStatisticsShimmer() {
                                     shape = RoundedCornerShape(8.dp)
                                 )
                         )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Add this new composable after AccessibleStatisticsCard
+@Composable
+fun AccessibleHoldingsCard(
+    userHolding: UserHolding?,
+    isLoading: Boolean,
+    modifier: Modifier = Modifier
+) {
+    if (!isLoading && userHolding == null) return
+    
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(
+                color = Color(0xFF1E293B).copy(alpha = 0.95f),
+                shape = RoundedCornerShape(32.dp)
+            )
+            .clip(RoundedCornerShape(32.dp))
+            .semantics {
+                contentDescription = if (isLoading) {
+                    "Loading your holdings information"
+                } else {
+                    userHolding?.let { holding ->
+                        "Your holdings: ${holding.quantity} shares at average price ₹${String.format("%.2f", holding.averagePrice)}"
+                    } ?: "No holdings information"
+                }
+            }
+    ) {
+        // Subtle glass morphism background
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            Color.White.copy(alpha = 0.08f),
+                            Color.White.copy(alpha = 0.02f)
+                        ),
+                        start = Offset(0f, 0f),
+                        end = Offset(1000f, 1000f)
+                    )
+                )
+        )
+        
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp)
+        ) {
+            Text(
+                text = "Your Holdings",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                fontSize = 20.sp,
+                modifier = Modifier.semantics {
+                    heading()
+                }
+            )
+            
+            Spacer(modifier = Modifier.height(20.dp))
+            
+            if (isLoading) {
+                AccessibleStatisticsShimmer()
+            } else if (userHolding != null) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        AccessibleStatisticItem(
+                            label = "Quantity",
+                            value = "${userHolding.quantity} shares",
+                            modifier = Modifier.weight(1f)
+                        )
+                        AccessibleStatisticItem(
+                            label = "Avg. Price",
+                            value = "₹${String.format("%.2f", userHolding.averagePrice)}",
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        AccessibleStatisticItem(
+                            label = "Invested",
+                            value = "₹${String.format("%.2f", userHolding.investedAmount)}",
+                            modifier = Modifier.weight(1f)
+                        )
+                        AccessibleStatisticItem(
+                            label = "Current Value",
+                            value = "₹${String.format("%.2f", userHolding.currentValue)}",
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        val isProfit = userHolding.profitLoss >= 0
+                        val profitLossColor = if (isProfit) Color(0xFF10B981) else Color(0xFFEF4444)
+                        
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .semantics(mergeDescendants = true) {
+                                    contentDescription = "Profit/Loss: ${if (isProfit) "profit" else "loss"} of ₹${String.format("%.2f", kotlin.math.abs(userHolding.profitLoss))}"
+                                }
+                        ) {
+                            Text(
+                                text = "P&L",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFF94A3B8),
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 12.sp
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = if (isProfit) Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
+                                    contentDescription = null,
+                                    tint = profitLossColor,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "${if (isProfit) "+" else ""}₹${String.format("%.2f", userHolding.profitLoss)}",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = profitLossColor,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
+                                )
+                            }
+                        }
+                        
+                        if (userHolding.firstBuyDate != null) {
+                            AccessibleStatisticItem(
+                                label = "First Buy",
+                                value = userHolding.firstBuyDate.take(10), // Show only date part
+                                modifier = Modifier.weight(1f)
+                            )
+                        } else {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
                     }
                 }
             }

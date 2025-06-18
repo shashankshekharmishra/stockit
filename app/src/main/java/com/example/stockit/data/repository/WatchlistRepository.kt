@@ -21,18 +21,19 @@ class WatchlistRepository @Inject constructor(
 
             val response = apiService.getUserWatchlist("Bearer $token")
             if (response.success && response.stocks != null) {
-                // Convert network model to data model
+                // Convert network model to data model - network response already has the correct structure
                 val watchlistStocks = response.stocks.map { networkStock ->
                     WatchlistStock(
                         symbol = networkStock.symbol,
-                        companyName = networkStock.companyName ?: networkStock.symbol, // Use companyName or fallback to symbol
+                        companyName = networkStock.companyName,
                         price = networkStock.price,
                         change = networkStock.change,
                         changePercent = networkStock.changePercent,
-                        high = null, // Set default values for missing fields
-                        low = null,
-                        volume = null,
-                        addedAt = networkStock.addedAt
+                        high = networkStock.high,
+                        low = networkStock.low,
+                        volume = networkStock.volume,
+                        addedAt = networkStock.addedAt,
+                        inWatchlist = networkStock.inWatchlist
                     )
                 }
                 Result.success(watchlistStocks)
@@ -59,14 +60,14 @@ class WatchlistRepository @Inject constructor(
                 // Convert network model to data model
                 val actionResponse = WatchlistActionResponse(
                     success = response.success,
+                    added = response.added,
+                    removed = response.removed,
+                    symbol = response.symbol,
+                    companyName = response.companyName,
                     message = response.message,
                     error = response.error,
-                    added = true,
-                    removed = false,
-                    symbol = symbol,
-                    companyName = null,
-                    inWatchlist = true,
-                    timestamp = System.currentTimeMillis().toString()
+                    inWatchlist = response.inWatchlist,
+                    timestamp = response.timestamp
                 )
                 Result.success(actionResponse)
             } else {
@@ -89,14 +90,14 @@ class WatchlistRepository @Inject constructor(
                 // Convert network model to data model
                 val actionResponse = WatchlistActionResponse(
                     success = response.success,
+                    added = response.added,
+                    removed = response.removed,
+                    symbol = response.symbol,
+                    companyName = response.companyName,
                     message = response.message,
                     error = response.error,
-                    added = false,
-                    removed = true,
-                    symbol = symbol,
-                    companyName = null,
-                    inWatchlist = false,
-                    timestamp = System.currentTimeMillis().toString()
+                    inWatchlist = response.inWatchlist,
+                    timestamp = response.timestamp
                 )
                 Result.success(actionResponse)
             } else {

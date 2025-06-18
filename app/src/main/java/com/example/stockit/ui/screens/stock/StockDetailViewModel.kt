@@ -37,7 +37,9 @@ data class StockDetailUiState(
     val isAuthenticated: Boolean = false,
     val affordabilityResult: AffordabilityResult? = null,
     val isInWatchlist: Boolean = false,
-    val watchlistLoading: Boolean = false
+    val watchlistLoading: Boolean = false,
+    val userHolding: UserHolding? = null, // Add this
+    val isLoadingHolding: Boolean = false // Add this
 )
 
 data class StockData(
@@ -73,6 +75,18 @@ data class AffordabilityResult(
     val totalCost: Double,
     val availableBalance: Double,
     val message: String?
+)
+
+data class UserHolding(
+    val symbol: String,
+    val owns: Boolean,
+    val quantity: Int,
+    val averagePrice: Double,
+    val investedAmount: Double,
+    val currentPrice: Double,
+    val currentValue: Double,
+    val profitLoss: Double,
+    val firstBuyDate: String?
 )
 
 @HiltViewModel
@@ -121,6 +135,11 @@ class StockDetailViewModel @Inject constructor(
                 }
                 
                 _uiState.value = _uiState.value.copy(isLoading = false)
+                
+                // Load user holding if authenticated
+                if (_uiState.value.isAuthenticated) {
+                    loadUserHolding(symbol)
+                }
                 
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
@@ -662,6 +681,58 @@ class StockDetailViewModel @Inject constructor(
                         error = exception.message ?: "Failed to remove from watchlist"
                     )
                 }
+        }
+    }
+
+    // Add this function to StockDetailViewModel class
+    fun loadUserHolding(symbol: String) {
+        viewModelScope.launch {
+            if (!validateAuthentication()) return@launch
+            
+            _uiState.value = _uiState.value.copy(isLoadingHolding = true)
+            
+            try {
+                val token = authManager.getAccessToken()
+                if (token.isEmpty()) {
+                    throw Exception("No authentication token")
+                }
+                
+                val response = ApiConfig.stockApiService.getUserStockHolding(
+                    token = "Bearer $token",
+                    symbol = symbol
+                )
+                
+                if (response.success && response.owns == true) {
+                    val holding = UserHolding(
+                        symbol = response.symbol ?: symbol,
+                        owns = response.owns ?: false,
+                        quantity = response.quantity ?: 0,
+                        averagePrice = response.averagePrice ?: 0.0,
+                        investedAmount = response.investedAmount ?: 0.0,
+                        currentPrice = response.currentPrice ?: 0.0,
+                        currentValue = response.currentValue ?: 0.0,
+                        profitLoss = response.profitLoss ?: 0.0,
+                        firstBuyDate = response.firstBuyDate
+                    )
+                    
+                    _uiState.value = _uiState.value.copy(
+                        userHolding = holding,
+                        isLoadingHolding = false
+                    )
+                } else {
+                    _uiState.value = _uiState.value.copy(
+                        userHolding = null,
+                        isLoadingHolding = false
+                    )
+                }
+                
+            } catch (e: Exception) {
+                println("⚠️ Error loading user holding: ${e.message}")
+                _uiState.value = _uiState.value.copy(
+                    userHolding = null,
+                    isLoadingHolding = false
+                )
+            }
         }
     }
 }

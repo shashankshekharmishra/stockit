@@ -2,7 +2,7 @@ package com.example.stockit.ui.screens.watchlist
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.stockit.data.model.WatchlistStock
+import com.example.stockit.network.WatchlistStock
 import com.example.stockit.data.repository.WatchlistRepository
 import com.example.stockit.utils.AuthManager
 import dagger.hilt.android.lifecycle.HiltViewModel
