@@ -14,12 +14,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -33,6 +32,8 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.onFocusChanged
 import kotlin.math.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -161,26 +162,29 @@ fun StockDetailScreen(
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFF667EEA),
-                        Color(0xFF764BA2),
-                        Color(0xFF1A1A2E)
+                        Color(0xFF1A1A2E), // Darker for better contrast
+                        Color(0xFF16213E),
+                        Color(0xFF0F172A)
                     )
                 )
             )
+            .semantics {
+                contentDescription = "Stock detail screen for $stockSymbol"
+            }
     ) {
-        // Background decoration
+        // Simplified background decoration for better contrast
         Canvas(modifier = Modifier.fillMaxSize()) {
             val centerX = size.width / 2
             val centerY = size.height / 3
             
-            // Animated background circles
+            // Subtle background circles with lower opacity
             drawCircle(
-                color = Color.White.copy(alpha = 0.05f),
+                color = Color.White.copy(alpha = 0.02f),
                 radius = size.width * 0.6f,
                 center = Offset(centerX - size.width * 0.3f, centerY - 100.dp.toPx())
             )
             drawCircle(
-                color = Color.White.copy(alpha = 0.03f),
+                color = Color.White.copy(alpha = 0.015f),
                 radius = size.width * 0.8f,
                 center = Offset(centerX + size.width * 0.2f, centerY + 200.dp.toPx())
             )
@@ -189,12 +193,15 @@ fun StockDetailScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = 60.dp),
+                .padding(top = 60.dp)
+                .semantics {
+                    contentDescription = "Stock information and trading options"
+                },
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             // Custom Header
             item {
-                ModernHeader(
+                AccessibleHeader(
                     stockSymbol = stockSymbol,
                     stockData = uiState.stockData,
                     onBackClick = onBackClick,
@@ -202,9 +209,9 @@ fun StockDetailScreen(
                 )
             }
             
-            // Price Card with Glass Morphism
+            // Price Card with Better Contrast
             item {
-                GlassPriceCard(
+                AccessiblePriceCard(
                     stockData = uiState.stockData,
                     isLoading = uiState.isLoading,
                     modifier = Modifier
@@ -217,9 +224,9 @@ fun StockDetailScreen(
                 )
             }
             
-            // Smooth Chart Card
+            // Accessible Chart Card
             item {
-                SmoothChartCard(
+                AccessibleChartCard(
                     chartData = uiState.chartData,
                     selectedTimeFrame = selectedTimeFrame,
                     onTimeFrameSelected = { selectedTimeFrame = it },
@@ -234,9 +241,9 @@ fun StockDetailScreen(
                 )
             }
             
-            // Enhanced Statistics
+            // Accessible Statistics
             item {
-                GlassStatisticsCard(
+                AccessibleStatisticsCard(
                     stockData = uiState.stockData,
                     stockDetails = uiState.stockDetails,
                     isLoading = uiState.isLoading,
@@ -250,9 +257,9 @@ fun StockDetailScreen(
                 )
             }
             
-            // Modern Trading Buttons
+            // Accessible Trading Buttons
             item {
-                ModernTradingButtons(
+                AccessibleTradingButtons(
                     stockSymbol = stockSymbol,
                     stockPrice = uiState.stockData?.price ?: 0.0,
                     onBuyClick = { showBuyDialog = true },
@@ -286,7 +293,7 @@ fun StockDetailScreen(
 }
 
 @Composable
-fun ModernHeader(
+fun AccessibleHeader(
     stockSymbol: String,
     stockData: StockData?,
     onBackClick: () -> Unit,
@@ -296,27 +303,31 @@ fun ModernHeader(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
+            .semantics(mergeDescendants = true) {
+                heading()
+                contentDescription = "Header section for $stockSymbol stock"
+            }
     ) {
-        // Glass morphism header background
+        // Enhanced glass morphism with better contrast
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(120.dp)
                 .background(
-                    color = Color.White.copy(alpha = 0.1f),
+                    color = Color(0xFF1E293B).copy(alpha = 0.9f), // More opaque for better contrast
                     shape = RoundedCornerShape(28.dp)
                 )
                 .clip(RoundedCornerShape(28.dp))
         ) {
-            // Gradient overlay
+            // Subtle gradient overlay
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
                         brush = Brush.linearGradient(
                             colors = listOf(
-                                Color.White.copy(alpha = 0.2f),
-                                Color.White.copy(alpha = 0.05f)
+                                Color.White.copy(alpha = 0.1f),
+                                Color.White.copy(alpha = 0.02f)
                             ),
                             start = Offset(0f, 0f),
                             end = Offset(1000f, 1000f)
@@ -337,13 +348,17 @@ fun ModernHeader(
                 modifier = Modifier
                     .size(48.dp)
                     .background(
-                        color = Color.White.copy(alpha = 0.2f),
+                        color = Color(0xFF334155).copy(alpha = 0.8f), // Better contrast
                         shape = CircleShape
                     )
+                    .semantics {
+                        contentDescription = "Go back to previous screen"
+                        role = Role.Button
+                    }
             ) {
                 Icon(
                     Icons.Default.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = null, // Handled by parent semantics
                     tint = Color.White,
                     modifier = Modifier.size(24.dp)
                 )
@@ -351,20 +366,29 @@ fun ModernHeader(
             
             Spacer(modifier = Modifier.width(16.dp))
             
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .semantics {
+                        contentDescription = "Stock symbol: $stockSymbol"
+                    }
+            ) {
                 Text(
                     text = stockSymbol,
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White,
+                    color = Color.White, // Full white for maximum contrast
                     fontSize = 24.sp
                 )
                 stockData?.name?.let { name ->
                     Text(
                         text = name,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White.copy(alpha = 0.8f),
-                        fontSize = 14.sp
+                        color = Color(0xFFE2E8F0), // Light gray with good contrast
+                        fontSize = 14.sp,
+                        modifier = Modifier.semantics {
+                            contentDescription = "Company name: $name"
+                        }
                     )
                 }
             }
@@ -375,13 +399,17 @@ fun ModernHeader(
                     modifier = Modifier
                         .size(48.dp)
                         .background(
-                            color = Color.White.copy(alpha = 0.2f),
+                            color = Color(0xFF334155).copy(alpha = 0.8f),
                             shape = CircleShape
                         )
+                        .semantics {
+                            contentDescription = "Add $stockSymbol to favorites"
+                            role = Role.Button
+                        }
                 ) {
                     Icon(
                         Icons.Default.FavoriteBorder,
-                        contentDescription = "Favorite",
+                        contentDescription = null,
                         tint = Color.White,
                         modifier = Modifier.size(24.dp)
                     )
@@ -394,13 +422,17 @@ fun ModernHeader(
                     modifier = Modifier
                         .size(48.dp)
                         .background(
-                            color = Color.White.copy(alpha = 0.2f),
+                            color = Color(0xFF334155).copy(alpha = 0.8f),
                             shape = CircleShape
                         )
+                        .semantics {
+                            contentDescription = "Share $stockSymbol stock information"
+                            role = Role.Button
+                        }
                 ) {
                     Icon(
                         Icons.Default.Share,
-                        contentDescription = "Share",
+                        contentDescription = null,
                         tint = Color.White,
                         modifier = Modifier.size(24.dp)
                     )
@@ -411,16 +443,16 @@ fun ModernHeader(
 }
 
 @Composable
-fun GlassPriceCard(
+fun AccessiblePriceCard(
     stockData: StockData?,
     isLoading: Boolean,
     modifier: Modifier = Modifier
 ) {
     // Animated shimmer effect
     val shimmerColors = listOf(
-        Color.White.copy(alpha = 0.1f),
-        Color.White.copy(alpha = 0.3f),
-        Color.White.copy(alpha = 0.1f)
+        Color(0xFF334155).copy(alpha = 0.3f),
+        Color(0xFF475569).copy(alpha = 0.5f),
+        Color(0xFF334155).copy(alpha = 0.3f)
     )
     
     val transition = rememberInfiniteTransition(label = "shimmer")
@@ -439,20 +471,34 @@ fun GlassPriceCard(
             .fillMaxWidth()
             .height(180.dp)
             .background(
-                color = Color.White.copy(alpha = 0.1f),
+                color = Color(0xFF1E293B).copy(alpha = 0.95f), // Better contrast
                 shape = RoundedCornerShape(32.dp)
             )
             .clip(RoundedCornerShape(32.dp))
+            .semantics {
+                contentDescription = if (isLoading) {
+                    "Loading price information"
+                } else {
+                    stockData?.let { data ->
+                        val change = data.change ?: 0.0
+                        val changePercent = data.changePercent ?: 0.0
+                        val changeDirection = if (change >= 0) "up" else "down"
+                        "Current price: ₹${String.format("%.2f", data.price)}. " +
+                        "Change: ${if (change >= 0) "+" else ""}${String.format("%.2f", change)} " +
+                        "or ${if (changePercent >= 0) "+" else ""}${String.format("%.2f", changePercent)}% $changeDirection"
+                    } ?: "Price information unavailable"
+                }
+            }
     ) {
-        // Glass morphism background
+        // Subtle glass morphism background
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     brush = Brush.linearGradient(
                         colors = listOf(
-                            Color.White.copy(alpha = 0.25f),
-                            Color.White.copy(alpha = 0.05f)
+                            Color.White.copy(alpha = 0.08f),
+                            Color.White.copy(alpha = 0.02f)
                         ),
                         start = Offset(0f, 0f),
                         end = Offset(1000f, 1000f)
@@ -497,7 +543,10 @@ fun GlassPriceCard(
                     fontWeight = FontWeight.Black,
                     color = Color.White,
                     fontSize = 42.sp,
-                    letterSpacing = (-1).sp
+                    letterSpacing = (-1).sp,
+                    modifier = Modifier.semantics {
+                        contentDescription = "Current stock price: ₹${String.format("%.2f", animatedPrice)}"
+                    }
                 )
                 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -505,12 +554,17 @@ fun GlassPriceCard(
                 val change = stockData.change ?: 0.0
                 val changePercent = stockData.changePercent ?: 0.0
                 val isPositive = change >= 0
-                val changeColor = if (isPositive) Color(0xFF00FF87) else Color(0xFFFF6B6B)
+                val changeColor = if (isPositive) Color(0xFF10B981) else Color(0xFFEF4444) // Better contrast colors
                 
                 Row(
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.semantics(mergeDescendants = true) {
+                        val changeDirection = if (isPositive) "increased" else "decreased"
+                        contentDescription = "Stock has $changeDirection by ₹${String.format("%.2f", kotlin.math.abs(change))} " +
+                                "or ${String.format("%.2f", kotlin.math.abs(changePercent))} percent"
+                    }
                 ) {
-                    // Animated change indicator
+                    // Enhanced change indicator
                     Box(
                         modifier = Modifier
                             .size(32.dp)
@@ -541,7 +595,7 @@ fun GlassPriceCard(
                         Text(
                             text = "${if (isPositive) "+" else ""}${String.format("%.2f", changePercent)}%",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = changeColor.copy(alpha = 0.8f),
+                            color = changeColor.copy(alpha = 0.9f),
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -552,7 +606,7 @@ fun GlassPriceCard(
 }
 
 @Composable
-fun SmoothChartCard(
+fun AccessibleChartCard(
     chartData: List<ChartPoint>,
     selectedTimeFrame: String,
     onTimeFrameSelected: (String) -> Unit,
@@ -566,20 +620,27 @@ fun SmoothChartCard(
             .fillMaxWidth()
             .height(320.dp)
             .background(
-                color = Color.White.copy(alpha = 0.1f),
+                color = Color(0xFF1E293B).copy(alpha = 0.95f),
                 shape = RoundedCornerShape(32.dp)
             )
             .clip(RoundedCornerShape(32.dp))
+            .semantics {
+                contentDescription = if (isLoading) {
+                    "Loading price chart for $selectedTimeFrame timeframe"
+                } else {
+                    "Price chart for $selectedTimeFrame timeframe showing ${chartData.size} data points"
+                }
+            }
     ) {
-        // Glass morphism background
+        // Subtle glass morphism background
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     brush = Brush.linearGradient(
                         colors = listOf(
-                            Color.White.copy(alpha = 0.25f),
-                            Color.White.copy(alpha = 0.05f)
+                            Color.White.copy(alpha = 0.08f),
+                            Color.White.copy(alpha = 0.02f)
                         ),
                         start = Offset(0f, 0f),
                         end = Offset(1000f, 1000f)
@@ -597,16 +658,19 @@ fun SmoothChartCard(
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = Color.White,
-                fontSize = 20.sp
+                fontSize = 20.sp,
+                modifier = Modifier.semantics {
+                    heading()
+                }
             )
             
             Spacer(modifier = Modifier.height(20.dp))
             
             // Chart
             if (isLoading) {
-                SmoothChartShimmer()
+                AccessibleChartShimmer()
             } else {
-                SmoothStockChart(
+                AccessibleStockChart(
                     data = chartData,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -616,34 +680,44 @@ fun SmoothChartCard(
             
             Spacer(modifier = Modifier.height(20.dp))
             
-            // Modern time frame selector
+            // Enhanced accessible time frame selector
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics {
+                        contentDescription = "Time frame selector. Currently selected: $selectedTimeFrame"
+                    },
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 timeFrames.forEach { timeFrame ->
                     val isSelected = timeFrame == selectedTimeFrame
                     
-                    Box(
+                    Button(
+                        onClick = { onTimeFrameSelected(timeFrame) },
                         modifier = Modifier
                             .weight(1f)
-                            .height(40.dp)
-                            .background(
-                                color = if (isSelected) {
-                                    Color.White.copy(alpha = 0.3f)
-                                } else {
-                                    Color.White.copy(alpha = 0.1f)
-                                },
-                                shape = RoundedCornerShape(20.dp)
-                            )
-                            .clickable { onTimeFrameSelected(timeFrame) },
-                        contentAlignment = Alignment.Center
+                            .height(48.dp) // Minimum touch target
+                            .semantics {
+                                contentDescription = "Select $timeFrame timeframe"
+                                if (isSelected) {
+                                    stateDescription = "Selected"
+                                }
+                            },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isSelected) {
+                                Color(0xFF3B82F6)
+                            } else {
+                                Color(0xFF334155)
+                            },
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(24.dp)
                     ) {
                         Text(
                             text = timeFrame,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = if (isSelected) Color.White else Color.White.copy(alpha = 0.7f),
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = Color.White
                         )
                     }
                 }
@@ -653,13 +727,16 @@ fun SmoothChartCard(
 }
 
 @Composable
-fun SmoothStockChart(
+fun AccessibleStockChart(
     data: List<ChartPoint>,
     modifier: Modifier = Modifier
 ) {
     if (data.isEmpty()) {
         Box(
-            modifier = modifier,
+            modifier = modifier
+                .semantics {
+                    contentDescription = "No chart data available for the selected timeframe"
+                },
             contentAlignment = Alignment.Center
         ) {
             Column(
@@ -669,13 +746,13 @@ fun SmoothStockChart(
                     Icons.Default.TrendingUp,
                     contentDescription = null,
                     modifier = Modifier.size(48.dp),
-                    tint = Color.White.copy(alpha = 0.5f)
+                    tint = Color(0xFF64748B)
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "No chart data available",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White.copy(alpha = 0.7f),
+                    color = Color(0xFF94A3B8),
                     fontWeight = FontWeight.Medium
                 )
             }
@@ -688,7 +765,7 @@ fun SmoothStockChart(
     } else {
         true
     }
-    val chartColor = if (isPositive) Color(0xFF00FF87) else Color(0xFFFF6B6B)
+    val chartColor = if (isPositive) Color(0xFF10B981) else Color(0xFFEF4444)
     
     // Animation for chart drawing
     val animationProgress by animateFloatAsState(
@@ -697,7 +774,14 @@ fun SmoothStockChart(
         label = "chart_animation"
     )
     
-    Canvas(modifier = modifier) {
+    Canvas(
+        modifier = modifier.semantics {
+            val trend = if (isPositive) "upward" else "downward"
+            val startPrice = data.firstOrNull()?.price ?: 0.0
+            val endPrice = data.lastOrNull()?.price ?: 0.0
+            contentDescription = "Stock price chart showing $trend trend from ₹${String.format("%.2f", startPrice)} to ₹${String.format("%.2f", endPrice)}"
+        }
+    ) {
         val width = size.width
         val height = size.height
         val padding = 40.dp.toPx()
@@ -773,7 +857,7 @@ fun SmoothStockChart(
             }
         }
         
-        // Draw gradient fill
+        // Draw gradient fill with better visibility
         val fillPath = Path().apply {
             addPath(path)
             lineTo(animatedPoints.last().x, height - padding)
@@ -785,7 +869,7 @@ fun SmoothStockChart(
             path = fillPath,
             brush = Brush.verticalGradient(
                 colors = listOf(
-                    chartColor.copy(alpha = 0.4f),
+                    chartColor.copy(alpha = 0.3f),
                     chartColor.copy(alpha = 0.1f),
                     Color.Transparent
                 ),
@@ -794,56 +878,42 @@ fun SmoothStockChart(
             )
         )
         
-        // Draw glow effect behind the line
-        drawPath(
-            path = path,
-            color = chartColor.copy(alpha = 0.3f),
-            style = Stroke(
-                width = 8.dp.toPx(),
-                cap = StrokeCap.Round,
-                join = StrokeJoin.Round
-            )
-        )
-        
-        // Draw main chart line
+        // Draw main chart line with better visibility
         drawPath(
             path = path,
             color = chartColor,
             style = Stroke(
-                width = 4.dp.toPx(),
+                width = 3.dp.toPx(),
                 cap = StrokeCap.Round,
                 join = StrokeJoin.Round
             )
         )
         
-        // Draw animated points
-        animatedPoints.forEachIndexed { index, point ->
-            val pointAlpha = if (index == animatedPoints.size - 1) 1f else 0.6f
-            
-            // Outer glow
+        // Draw key points only to avoid clutter
+        if (animatedPoints.size >= 2) {
+            // Start point
             drawCircle(
-                color = chartColor.copy(alpha = 0.3f * pointAlpha),
-                radius = 8.dp.toPx(),
-                center = point
+                color = chartColor,
+                radius = 3.dp.toPx(),
+                center = animatedPoints.first()
             )
-            // Main point
+            // End point
             drawCircle(
-                color = chartColor.copy(alpha = pointAlpha),
+                color = chartColor,
                 radius = 4.dp.toPx(),
-                center = point
+                center = animatedPoints.last()
             )
-            // Inner highlight
             drawCircle(
-                color = Color.White.copy(alpha = 0.8f * pointAlpha),
+                color = Color.White,
                 radius = 2.dp.toPx(),
-                center = point
+                center = animatedPoints.last()
             )
         }
     }
 }
 
 @Composable
-fun GlassStatisticsCard(
+fun AccessibleStatisticsCard(
     stockData: StockData?,
     stockDetails: StockDetails?,
     isLoading: Boolean,
@@ -853,20 +923,27 @@ fun GlassStatisticsCard(
         modifier = modifier
             .fillMaxWidth()
             .background(
-                color = Color.White.copy(alpha = 0.1f),
+                color = Color(0xFF1E293B).copy(alpha = 0.95f),
                 shape = RoundedCornerShape(32.dp)
             )
             .clip(RoundedCornerShape(32.dp))
+            .semantics {
+                contentDescription = if (isLoading) {
+                    "Loading key statistics"
+                } else {
+                    "Key statistics section with market data"
+                }
+            }
     ) {
-        // Glass morphism background
+        // Subtle glass morphism background
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     brush = Brush.linearGradient(
                         colors = listOf(
-                            Color.White.copy(alpha = 0.25f),
-                            Color.White.copy(alpha = 0.05f)
+                            Color.White.copy(alpha = 0.08f),
+                            Color.White.copy(alpha = 0.02f)
                         ),
                         start = Offset(0f, 0f),
                         end = Offset(1000f, 1000f)
@@ -884,13 +961,16 @@ fun GlassStatisticsCard(
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = Color.White,
-                fontSize = 20.sp
+                fontSize = 20.sp,
+                modifier = Modifier.semantics {
+                    heading()
+                }
             )
             
             Spacer(modifier = Modifier.height(20.dp))
             
             if (isLoading) {
-                ModernStatisticsShimmer()
+                AccessibleStatisticsShimmer()
             } else {
                 Column(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -899,12 +979,12 @@ fun GlassStatisticsCard(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        ModernStatisticItem(
+                        AccessibleStatisticItem(
                             label = "Open",
                             value = stockData?.open?.let { "₹${String.format("%.2f", it)}" } ?: "—",
                             modifier = Modifier.weight(1f)
                         )
-                        ModernStatisticItem(
+                        AccessibleStatisticItem(
                             label = "Previous Close",
                             value = stockData?.previousClose?.let { "₹${String.format("%.2f", it)}" } ?: "—",
                             modifier = Modifier.weight(1f)
@@ -915,12 +995,12 @@ fun GlassStatisticsCard(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        ModernStatisticItem(
+                        AccessibleStatisticItem(
                             label = "Day High",
                             value = stockData?.high?.let { "₹${String.format("%.2f", it)}" } ?: "—",
                             modifier = Modifier.weight(1f)
                         )
-                        ModernStatisticItem(
+                        AccessibleStatisticItem(
                             label = "Day Low",
                             value = stockData?.low?.let { "₹${String.format("%.2f", it)}" } ?: "—",
                             modifier = Modifier.weight(1f)
@@ -931,12 +1011,12 @@ fun GlassStatisticsCard(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        ModernStatisticItem(
+                        AccessibleStatisticItem(
                             label = "Volume",
                             value = stockData?.volume?.let { formatVolume(it) } ?: "—",
                             modifier = Modifier.weight(1f)
                         )
-                        ModernStatisticItem(
+                        AccessibleStatisticItem(
                             label = "Market Cap",
                             value = stockDetails?.marketCap?.let { formatMarketCap(it) } ?: "—",
                             modifier = Modifier.weight(1f)
@@ -949,18 +1029,20 @@ fun GlassStatisticsCard(
 }
 
 @Composable
-fun ModernStatisticItem(
+fun AccessibleStatisticItem(
     label: String,
     value: String,
     modifier: Modifier = Modifier
 ) {
     Column(
-        modifier = modifier
+        modifier = modifier.semantics(mergeDescendants = true) {
+            contentDescription = "$label: $value"
+        }
     ) {
         Text(
             text = label,
             style = MaterialTheme.typography.bodySmall,
-            color = Color.White.copy(alpha = 0.7f),
+            color = Color(0xFF94A3B8), // Better contrast
             fontWeight = FontWeight.Medium,
             fontSize = 12.sp
         )
@@ -976,7 +1058,7 @@ fun ModernStatisticItem(
 }
 
 @Composable
-fun ModernTradingButtons(
+fun AccessibleTradingButtons(
     stockSymbol: String,
     stockPrice: Double,
     onBuyClick: () -> Unit,
@@ -984,26 +1066,27 @@ fun ModernTradingButtons(
     modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .semantics {
+                contentDescription = "Trading options for $stockSymbol at ₹${String.format("%.2f", stockPrice)} per share"
+            },
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // Sell Button
-        Box(
+        Button(
+            onClick = onSellClick,
             modifier = Modifier
                 .weight(1f)
-                .height(56.dp)
-                .background(
-                    brush = Brush.linearGradient(
-                        colors = listOf(
-                            Color(0xFFFF6B6B),
-                            Color(0xFFEE5A6F)
-                        )
-                    ),
-                    shape = RoundedCornerShape(28.dp)
-                )
-                .clickable { onSellClick() }
-                .clip(RoundedCornerShape(28.dp)),
-            contentAlignment = Alignment.Center
+                .height(56.dp) // Proper minimum touch target
+                .semantics {
+                    contentDescription = "Sell $stockSymbol stock"
+                },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFFEF4444),
+                contentColor = Color.White
+            ),
+            shape = RoundedCornerShape(28.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically
@@ -1025,22 +1108,19 @@ fun ModernTradingButtons(
         }
         
         // Buy Button
-        Box(
+        Button(
+            onClick = onBuyClick,
             modifier = Modifier
                 .weight(1f)
-                .height(56.dp)
-                .background(
-                    brush = Brush.linearGradient(
-                        colors = listOf(
-                            Color(0xFF00FF87),
-                            Color(0xFF60EFFF)
-                        )
-                    ),
-                    shape = RoundedCornerShape(28.dp)
-                )
-                .clickable { onBuyClick() }
-                .clip(RoundedCornerShape(28.dp)),
-            contentAlignment = Alignment.Center
+                .height(56.dp) // Proper minimum touch target
+                .semantics {
+                    contentDescription = "Buy $stockSymbol stock"
+                },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF10B981),
+                contentColor = Color.White
+            ),
+            shape = RoundedCornerShape(28.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically
@@ -1063,13 +1143,13 @@ fun ModernTradingButtons(
     }
 }
 
-// Enhanced Shimmer Components
+// Enhanced Shimmer Components with better contrast
 @Composable
-fun SmoothChartShimmer() {
+fun AccessibleChartShimmer() {
     val shimmerColors = listOf(
-        Color.White.copy(alpha = 0.1f),
-        Color.White.copy(alpha = 0.3f),
-        Color.White.copy(alpha = 0.1f)
+        Color(0xFF334155).copy(alpha = 0.3f),
+        Color(0xFF475569).copy(alpha = 0.5f),
+        Color(0xFF334155).copy(alpha = 0.3f)
     )
     
     val transition = rememberInfiniteTransition(label = "shimmer")
@@ -1095,15 +1175,18 @@ fun SmoothChartShimmer() {
                 ),
                 shape = RoundedCornerShape(16.dp)
             )
+            .semantics {
+                contentDescription = "Loading chart animation"
+            }
     )
 }
 
 @Composable
-fun ModernStatisticsShimmer() {
+fun AccessibleStatisticsShimmer() {
     val shimmerColors = listOf(
-        Color.White.copy(alpha = 0.1f),
-        Color.White.copy(alpha = 0.3f),
-        Color.White.copy(alpha = 0.1f)
+        Color(0xFF334155).copy(alpha = 0.3f),
+        Color(0xFF475569).copy(alpha = 0.5f),
+        Color(0xFF334155).copy(alpha = 0.3f)
     )
     
     val transition = rememberInfiniteTransition(label = "shimmer")
@@ -1118,7 +1201,10 @@ fun ModernStatisticsShimmer() {
     )
     
     Column(
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = Modifier.semantics {
+            contentDescription = "Loading statistics animation"
+        }
     ) {
         repeat(3) {
             Row(
