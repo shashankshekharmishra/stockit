@@ -62,6 +62,12 @@ fun SignUpScreen(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
+    // Validation states
+    var isFullNameValid by remember { mutableStateOf(true) }
+    var isEmailValid by remember { mutableStateOf(true) }
+    var isPasswordValid by remember { mutableStateOf(true) }
+    var isConfirmPasswordValid by remember { mutableStateOf(true) }
+
     // Animation states
     val contentAlpha by animateFloatAsState(
         targetValue = if (startAnimation) 1f else 0f,
@@ -80,6 +86,49 @@ fun SignUpScreen(
         ),
         label = "content_scale"
     )
+
+    // Validation functions
+    fun validateFullName(name: String): String? {
+        return when {
+            name.isBlank() -> "Full name is required"
+            name.length < 2 -> "Full name must be at least 2 characters"
+            name.any { it.isDigit() } -> "Full name cannot contain numbers"
+            name.any { !it.isLetter() && !it.isWhitespace() && it != '\'' && it != '-' } -> 
+                "Full name can only contain letters, spaces, hyphens, and apostrophes"
+            name.any { it.isUpperCase() } -> "Full name must be in lowercase only"
+            else -> null
+        }
+    }
+
+    fun validateEmail(email: String): String? {
+        val emailPattern = "[a-zA-Z0-9._-]+@[a-z]+\\.+[a-z]+"
+        return when {
+            email.isBlank() -> "Email is required"
+            !email.matches(emailPattern.toRegex()) -> "Please enter a valid email address"
+            else -> null
+        }
+    }
+
+    fun validatePassword(password: String): String? {
+        return when {
+            password.isBlank() -> "Password is required"
+            password.length < 8 -> "Password must be at least 8 characters long"
+            !password.any { it.isUpperCase() } -> "Password must contain at least 1 uppercase letter"
+            !password.any { it.isLowerCase() } -> "Password must contain at least 1 lowercase letter"
+            !password.any { it.isDigit() } -> "Password must contain at least 1 number"
+            !password.any { "!@#$%^&*()_+-=[]{}|;:,.<>?".contains(it) } -> 
+                "Password must contain at least 1 special character (!@#$%^&*()_+-=[]{}|;:,.<>?)"
+            else -> null
+        }
+    }
+
+    fun validateConfirmPassword(password: String, confirmPassword: String): String? {
+        return when {
+            confirmPassword.isBlank() -> "Please confirm your password"
+            password != confirmPassword -> "Passwords do not match"
+            else -> null
+        }
+    }
 
     // Start animation
     LaunchedEffect(Unit) {
@@ -116,7 +165,6 @@ fun SignUpScreen(
             )
         }
 
-        // Change from Box with Center alignment to Column with fillMaxSize like SignInScreen
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -125,7 +173,7 @@ fun SignUpScreen(
                 .alpha(contentAlpha),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(60.dp))  // Reduced from 80.dp to accommodate more fields
+            Spacer(modifier = Modifier.height(60.dp))
             
             // Enhanced Title
             Text(
@@ -150,7 +198,7 @@ fun SignUpScreen(
                 letterSpacing = 0.5.sp
             )
             
-            Spacer(modifier = Modifier.height(32.dp))  // Reduced from 40.dp
+            Spacer(modifier = Modifier.height(32.dp))
 
             // Enhanced Form Fields
             Column(
@@ -160,11 +208,15 @@ fun SignUpScreen(
                 // Full Name Field
                 OutlinedTextField(
                     value = fullName,
-                    onValueChange = { fullName = it },
+                    onValueChange = { 
+                        fullName = it
+                        isFullNameValid = validateFullName(it) == null
+                        if (errorMessage.isNotEmpty()) errorMessage = ""
+                    },
                     label = { 
                         Text(
                             "Full Name",
-                            color = Color(0xFFE2E8F0),
+                            color = if (isFullNameValid) Color(0xFFE2E8F0) else Color(0xFFEF4444),
                             fontWeight = FontWeight.Medium
                         ) 
                     },
@@ -172,12 +224,12 @@ fun SignUpScreen(
                         Icon(
                             imageVector = Icons.Default.Person,
                             contentDescription = null,
-                            tint = Color(0xFF6366F1)
+                            tint = if (isFullNameValid) Color(0xFF6366F1) else Color(0xFFEF4444)
                         )
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .defaultMinSize(minHeight = 56.dp), // Changed from .height(56.dp).wrapContentHeight()
+                        .defaultMinSize(minHeight = 56.dp),
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Text,
                         imeAction = ImeAction.Next
@@ -187,26 +239,47 @@ fun SignUpScreen(
                     ),
                     singleLine = true,
                     shape = RoundedCornerShape(20.dp),
+                    isError = !isFullNameValid,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFF6366F1),
-                        unfocusedBorderColor = Color(0xFF334155),
+                        focusedBorderColor = if (isFullNameValid) Color(0xFF6366F1) else Color(0xFFEF4444),
+                        unfocusedBorderColor = if (isFullNameValid) Color(0xFF334155) else Color(0xFFEF4444),
+                        errorBorderColor = Color(0xFFEF4444),
                         focusedContainerColor = Color(0xFF1E293B).copy(alpha = 0.95f),
                         unfocusedContainerColor = Color(0xFF1E293B).copy(alpha = 0.95f),
-                        focusedLabelColor = Color(0xFF6366F1),
-                        unfocusedLabelColor = Color(0xFFE2E8F0),
+                        errorContainerColor = Color(0xFF1E293B).copy(alpha = 0.95f),
+                        focusedLabelColor = if (isFullNameValid) Color(0xFF6366F1) else Color(0xFFEF4444),
+                        unfocusedLabelColor = if (isFullNameValid) Color(0xFFE2E8F0) else Color(0xFFEF4444),
+                        errorLabelColor = Color(0xFFEF4444),
                         focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
+                        unfocusedTextColor = Color.White,
+                        errorTextColor = Color.White
                     )
                 )
+
+                // Show full name validation error
+                validateFullName(fullName)?.let { error ->
+                    if (fullName.isNotEmpty()) {
+                        Text(
+                            text = error,
+                            color = Color(0xFFEF4444),
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(start = 16.dp)
+                        )
+                    }
+                }
 
                 // Email Field
                 OutlinedTextField(
                     value = email,
-                    onValueChange = { email = it },
+                    onValueChange = { 
+                        email = it
+                        isEmailValid = validateEmail(it) == null
+                        if (errorMessage.isNotEmpty()) errorMessage = ""
+                    },
                     label = { 
                         Text(
                             "Email",
-                            color = Color(0xFFE2E8F0),
+                            color = if (isEmailValid) Color(0xFFE2E8F0) else Color(0xFFEF4444),
                             fontWeight = FontWeight.Medium
                         ) 
                     },
@@ -214,12 +287,12 @@ fun SignUpScreen(
                         Icon(
                             imageVector = Icons.Default.Email,
                             contentDescription = null,
-                            tint = Color(0xFF6366F1)
+                            tint = if (isEmailValid) Color(0xFF6366F1) else Color(0xFFEF4444)
                         )
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .defaultMinSize(minHeight = 56.dp), // Changed from .height(56.dp).wrapContentHeight()
+                        .defaultMinSize(minHeight = 56.dp),
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Email,
                         imeAction = ImeAction.Next
@@ -229,26 +302,48 @@ fun SignUpScreen(
                     ),
                     singleLine = true,
                     shape = RoundedCornerShape(20.dp),
+                    isError = !isEmailValid,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFF6366F1),
-                        unfocusedBorderColor = Color(0xFF334155),
+                        focusedBorderColor = if (isEmailValid) Color(0xFF6366F1) else Color(0xFFEF4444),
+                        unfocusedBorderColor = if (isEmailValid) Color(0xFF334155) else Color(0xFFEF4444),
+                        errorBorderColor = Color(0xFFEF4444),
                         focusedContainerColor = Color(0xFF1E293B).copy(alpha = 0.95f),
                         unfocusedContainerColor = Color(0xFF1E293B).copy(alpha = 0.95f),
-                        focusedLabelColor = Color(0xFF6366F1),
-                        unfocusedLabelColor = Color(0xFFE2E8F0),
+                        errorContainerColor = Color(0xFF1E293B).copy(alpha = 0.95f),
+                        focusedLabelColor = if (isEmailValid) Color(0xFF6366F1) else Color(0xFFEF4444),
+                        unfocusedLabelColor = if (isEmailValid) Color(0xFFE2E8F0) else Color(0xFFEF4444),
+                        errorLabelColor = Color(0xFFEF4444),
                         focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
+                        unfocusedTextColor = Color.White,
+                        errorTextColor = Color.White
                     )
                 )
+
+                // Show email validation error
+                validateEmail(email)?.let { error ->
+                    if (email.isNotEmpty()) {
+                        Text(
+                            text = error,
+                            color = Color(0xFFEF4444),
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(start = 16.dp)
+                        )
+                    }
+                }
 
                 // Password Field
                 OutlinedTextField(
                     value = password,
-                    onValueChange = { password = it },
+                    onValueChange = { 
+                        password = it
+                        isPasswordValid = validatePassword(it) == null
+                        isConfirmPasswordValid = validateConfirmPassword(it, confirmPassword) == null
+                        if (errorMessage.isNotEmpty()) errorMessage = ""
+                    },
                     label = { 
                         Text(
                             "Password",
-                            color = Color(0xFFE2E8F0),
+                            color = if (isPasswordValid) Color(0xFFE2E8F0) else Color(0xFFEF4444),
                             fontWeight = FontWeight.Medium
                         ) 
                     },
@@ -258,13 +353,13 @@ fun SignUpScreen(
                             Icon(
                                 imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
                                 contentDescription = if (passwordVisible) "Hide password" else "Show password",
-                                tint = Color(0xFF6366F1)
+                                tint = if (isPasswordValid) Color(0xFF6366F1) else Color(0xFFEF4444)
                             )
                         }
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .defaultMinSize(minHeight = 56.dp), // Changed from .height(56.dp).wrapContentHeight()
+                        .defaultMinSize(minHeight = 56.dp),
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Password,
                         imeAction = ImeAction.Next
@@ -274,26 +369,47 @@ fun SignUpScreen(
                     ),
                     singleLine = true,
                     shape = RoundedCornerShape(20.dp),
+                    isError = !isPasswordValid,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFF6366F1),
-                        unfocusedBorderColor = Color(0xFF334155),
+                        focusedBorderColor = if (isPasswordValid) Color(0xFF6366F1) else Color(0xFFEF4444),
+                        unfocusedBorderColor = if (isPasswordValid) Color(0xFF334155) else Color(0xFFEF4444),
+                        errorBorderColor = Color(0xFFEF4444),
                         focusedContainerColor = Color(0xFF1E293B).copy(alpha = 0.95f),
                         unfocusedContainerColor = Color(0xFF1E293B).copy(alpha = 0.95f),
-                        focusedLabelColor = Color(0xFF6366F1),
-                        unfocusedLabelColor = Color(0xFFE2E8F0),
+                        errorContainerColor = Color(0xFF1E293B).copy(alpha = 0.95f),
+                        focusedLabelColor = if (isPasswordValid) Color(0xFF6366F1) else Color(0xFFEF4444),
+                        unfocusedLabelColor = if (isPasswordValid) Color(0xFFE2E8F0) else Color(0xFFEF4444),
+                        errorLabelColor = Color(0xFFEF4444),
                         focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
+                        unfocusedTextColor = Color.White,
+                        errorTextColor = Color.White
                     )
                 )
+
+                // Show password validation error
+                validatePassword(password)?.let { error ->
+                    if (password.isNotEmpty()) {
+                        Text(
+                            text = error,
+                            color = Color(0xFFEF4444),
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(start = 16.dp)
+                        )
+                    }
+                }
 
                 // Confirm Password Field
                 OutlinedTextField(
                     value = confirmPassword,
-                    onValueChange = { confirmPassword = it },
+                    onValueChange = { 
+                        confirmPassword = it
+                        isConfirmPasswordValid = validateConfirmPassword(password, it) == null
+                        if (errorMessage.isNotEmpty()) errorMessage = ""
+                    },
                     label = { 
                         Text(
                             "Confirm Password",
-                            color = Color(0xFFE2E8F0),
+                            color = if (isConfirmPasswordValid) Color(0xFFE2E8F0) else Color(0xFFEF4444),
                             fontWeight = FontWeight.Medium
                         ) 
                     },
@@ -303,13 +419,13 @@ fun SignUpScreen(
                             Icon(
                                 imageVector = if (confirmPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
                                 contentDescription = if (confirmPasswordVisible) "Hide password" else "Show password",
-                                tint = Color(0xFF6366F1)
+                                tint = if (isConfirmPasswordValid) Color(0xFF6366F1) else Color(0xFFEF4444)
                             )
                         }
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .defaultMinSize(minHeight = 56.dp), // Changed from .height(56.dp).wrapContentHeight()
+                        .defaultMinSize(minHeight = 56.dp),
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Password,
                         imeAction = ImeAction.Done
@@ -317,7 +433,8 @@ fun SignUpScreen(
                     keyboardActions = KeyboardActions(
                         onDone = { 
                             focusManager.clearFocus()
-                            if (fullName.isNotBlank() && email.isNotBlank() && 
+                            val allFieldsValid = isFullNameValid && isEmailValid && isPasswordValid && isConfirmPasswordValid
+                            if (allFieldsValid && fullName.isNotBlank() && email.isNotBlank() && 
                                 password.isNotBlank() && confirmPassword.isNotBlank()) {
                                 scope.launch {
                                     signUpUser(
@@ -336,22 +453,39 @@ fun SignUpScreen(
                     ),
                     singleLine = true,
                     shape = RoundedCornerShape(20.dp),
+                    isError = !isConfirmPasswordValid,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFF6366F1),
-                        unfocusedBorderColor = Color(0xFF334155),
+                        focusedBorderColor = if (isConfirmPasswordValid) Color(0xFF6366F1) else Color(0xFFEF4444),
+                        unfocusedBorderColor = if (isConfirmPasswordValid) Color(0xFF334155) else Color(0xFFEF4444),
+                        errorBorderColor = Color(0xFFEF4444),
                         focusedContainerColor = Color(0xFF1E293B).copy(alpha = 0.95f),
                         unfocusedContainerColor = Color(0xFF1E293B).copy(alpha = 0.95f),
-                        focusedLabelColor = Color(0xFF6366F1),
-                        unfocusedLabelColor = Color(0xFFE2E8F0),
+                        errorContainerColor = Color(0xFF1E293B).copy(alpha = 0.95f),
+                        focusedLabelColor = if (isConfirmPasswordValid) Color(0xFF6366F1) else Color(0xFFEF4444),
+                        unfocusedLabelColor = if (isConfirmPasswordValid) Color(0xFFE2E8F0) else Color(0xFFEF4444),
+                        errorLabelColor = Color(0xFFEF4444),
                         focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
+                        unfocusedTextColor = Color.White,
+                        errorTextColor = Color.White
                     )
                 )
+
+                // Show confirm password validation error
+                validateConfirmPassword(password, confirmPassword)?.let { error ->
+                    if (confirmPassword.isNotEmpty()) {
+                        Text(
+                            text = error,
+                            color = Color(0xFFEF4444),
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(start = 16.dp)
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Enhanced Error Message
+            // Enhanced Error Message for server errors
             AnimatedVisibility(
                 visible = errorMessage.isNotEmpty(),
                 enter = slideInVertically() + fadeIn(),
@@ -397,9 +531,34 @@ fun SignUpScreen(
             Spacer(modifier = Modifier.height(if (errorMessage.isNotEmpty()) 16.dp else 8.dp))
 
             // Enhanced Sign Up Button
+            val allFieldsValid = isFullNameValid && isEmailValid && isPasswordValid && isConfirmPasswordValid
             Button(
                 onClick = {
                     errorMessage = ""
+                    
+                    // Validate all fields first
+                    val nameError = validateFullName(fullName)
+                    val emailError = validateEmail(email)
+                    val passwordError = validatePassword(password)
+                    val confirmPasswordError = validateConfirmPassword(password, confirmPassword)
+                    
+                    if (nameError != null) {
+                        errorMessage = nameError
+                        return@Button
+                    }
+                    if (emailError != null) {
+                        errorMessage = emailError
+                        return@Button
+                    }
+                    if (passwordError != null) {
+                        errorMessage = passwordError
+                        return@Button
+                    }
+                    if (confirmPasswordError != null) {
+                        errorMessage = confirmPasswordError
+                        return@Button
+                    }
+                    
                     scope.launch {
                         signUpUser(
                             fullName = fullName,
@@ -416,7 +575,7 @@ fun SignUpScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
-                enabled = !isLoading && fullName.isNotBlank() && email.isNotBlank() && 
+                enabled = !isLoading && allFieldsValid && fullName.isNotBlank() && email.isNotBlank() && 
                          password.isNotBlank() && confirmPassword.isNotBlank(),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF6366F1),
@@ -441,7 +600,7 @@ fun SignUpScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))  // Reduced from 24.dp
+            Spacer(modifier = Modifier.height(20.dp))
 
             // Enhanced Sign In Link
             Row(
@@ -464,12 +623,12 @@ fun SignUpScreen(
                 }
             }
             
-            Spacer(modifier = Modifier.height(32.dp))  // Reduced from 40.dp
+            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }
 
-// Updated signUpUser function
+// Updated signUpUser function with better error handling
 suspend fun signUpUser(
     fullName: String,
     email: String,
@@ -509,7 +668,7 @@ suspend fun signUpUser(
         val errorMessage = when (e.code()) {
             400 -> "Invalid input. Please check your information and try again."
             409 -> "An account with this email already exists. Please sign in instead."
-            422 -> "Password must be at least 8 characters long and contain uppercase, lowercase, number, and special character."
+            422 -> "Validation failed. Please ensure all fields meet the requirements."
             429 -> "Too many attempts. Please try again later."
             500 -> "Server error. Please try again later."
             else -> "Sign up failed. Please try again."
