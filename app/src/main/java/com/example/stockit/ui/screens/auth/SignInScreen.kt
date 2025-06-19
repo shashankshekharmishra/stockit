@@ -385,7 +385,7 @@ fun SignInScreen(
     }
 }
 
-// Updated signInUser function using ApiConfig
+// Updated signInUser function
 suspend fun signInUser(
     email: String,
     password: String,
@@ -408,8 +408,11 @@ suspend fun signInUser(
             val userFullName = response.user_fullName ?: ""
             
             // Store tokens and user info in SharedPreferences
-            val authManager = AuthManager(context)
+            val authManager = AuthManager.getInstance(context)
             authManager.saveUserData(accessToken, refreshToken, userId, userEmail, userFullName)
+            
+            // Add a small delay to ensure state propagation
+            kotlinx.coroutines.delay(100)
             
             onSuccess()
         } else {

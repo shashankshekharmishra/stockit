@@ -74,7 +74,7 @@ class AuthManager @Inject constructor(
         _isLoggedIn.value = false
     }
 
-    // Make sure this method updates the StateFlow
+    // Updated method with immediate state flow update
     fun saveUserData(
         accessToken: String,
         refreshToken: String,
@@ -90,14 +90,22 @@ class AuthManager @Inject constructor(
             putString("user_full_name", userFullName)
             putBoolean("is_logged_in", true)
             putLong("token_timestamp", System.currentTimeMillis())
-            apply()
+            apply() // Use apply() instead of commit() for async operation
         }
+        
+        // Force immediate state update
         _isLoggedIn.value = true
+        
+        // Also refresh the login state to ensure consistency
+        refreshLoginState()
     }
 
     // Add a method to manually refresh the login state
     fun refreshLoginState() {
-        _isLoggedIn.value = checkCurrentLoginState()
+        val newState = checkCurrentLoginState()
+        if (_isLoggedIn.value != newState) {
+            _isLoggedIn.value = newState
+        }
     }
     
     fun isTokenExpired(): Boolean {
