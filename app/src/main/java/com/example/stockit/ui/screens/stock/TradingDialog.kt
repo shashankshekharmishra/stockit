@@ -14,11 +14,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.draw.clip
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -96,17 +99,19 @@ fun TradingDialog(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
+                .wrapContentHeight()
                 .padding(16.dp),
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+            shape = RoundedCornerShape(32.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = Color(0xFF1E293B)
+            )
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(24.dp)
             ) {
-                // Header
+                // Header with consistent styling
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -116,41 +121,53 @@ fun TradingDialog(
                         text = if (isBuying) "Buy $stockSymbol" else "Sell $stockSymbol",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F172A)
+                        color = Color.White,
+                        fontSize = 20.sp
                     )
                     
-                    IconButton(onClick = onDismiss) {
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(
+                                color = Color(0xFF475569),
+                                shape = androidx.compose.foundation.shape.CircleShape
+                            )
+                    ) {
                         Icon(
                             Icons.Default.Close,
                             contentDescription = "Close",
-                            tint = Color(0xFF64748B)
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }
                 
                 Spacer(modifier = Modifier.height(16.dp))
                 
-                // Authentication Check
+                // Authentication Check with consistent dark styling
                 if (!isAuthenticated) {
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = Color(0xFFFEF2F2)
-                        ),
-                        modifier = Modifier.fillMaxWidth()
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                color = Color(0xFFEF4444).copy(alpha = 0.15f),
+                                shape = RoundedCornerShape(16.dp)
+                            )
+                            .padding(16.dp)
                     ) {
                         Row(
-                            modifier = Modifier.padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 Icons.Default.Warning,
                                 contentDescription = null,
-                                tint = Color(0xFFDC2626)
+                                tint = Color(0xFFEF4444)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = "Please sign in to trade stocks",
-                                color = Color(0xFFDC2626),
+                                color = Color(0xFFEF4444),
                                 fontWeight = FontWeight.Medium
                             )
                         }
@@ -158,28 +175,30 @@ fun TradingDialog(
                     Spacer(modifier = Modifier.height(16.dp))
                 }
                 
-                // Current Price
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFFF8FAFC)
-                    )
+                // Current Price with consistent styling
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            color = Color(0xFF0F172A).copy(alpha = 0.6f),
+                            shape = RoundedCornerShape(16.dp)
+                        )
+                        .padding(16.dp)
                 ) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
                             text = "Current Price:",
                             style = MaterialTheme.typography.bodyLarge,
-                            color = Color(0xFF64748B),
+                            color = Color(0xFF94A3B8),
                             fontWeight = FontWeight.Medium
                         )
                         Text(
                             text = "₹${String.format("%.2f", stockPrice)}",
                             style = MaterialTheme.typography.bodyLarge,
-                            color = Color(0xFF0F172A),
+                            color = Color.White,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -187,7 +206,7 @@ fun TradingDialog(
                 
                 Spacer(modifier = Modifier.height(20.dp))
                 
-                // Quantity Input
+                // Quantity Input with consistent styling
                 OutlinedTextField(
                     value = quantity,
                     onValueChange = { 
@@ -195,24 +214,29 @@ fun TradingDialog(
                             quantity = it
                         }
                     },
-                    label = { Text("Quantity") },
+                    label = { Text("Quantity", color = Color(0xFF94A3B8)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     isError = quantityError.isNotEmpty(),
                     supportingText = if (quantityError.isNotEmpty()) {
-                        { Text(quantityError, color = Color(0xFFDC2626)) }
+                        { Text(quantityError, color = Color(0xFFEF4444)) }
                     } else null,
                     enabled = isAuthenticated,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Color(0xFF6366F1),
-                        unfocusedBorderColor = Color(0xFFE2E8F0)
+                        unfocusedBorderColor = Color(0xFF475569),
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        cursorColor = Color.White,
+                        disabledBorderColor = Color(0xFF334155),
+                        disabledTextColor = Color(0xFF64748B)
                     )
                 )
                 
                 Spacer(modifier = Modifier.height(16.dp))
                 
-                // Price Type Selection
+                // Price Type Selection with consistent styling
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -220,12 +244,17 @@ fun TradingDialog(
                     Checkbox(
                         checked = useMarketPrice,
                         onCheckedChange = { useMarketPrice = it },
-                        enabled = isAuthenticated
+                        enabled = isAuthenticated,
+                        colors = CheckboxDefaults.colors(
+                            checkedColor = Color(0xFF6366F1),
+                            uncheckedColor = Color(0xFF475569),
+                            checkmarkColor = Color.White
+                        )
                     )
                     Text(
                         text = "Use Market Price",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = if (isAuthenticated) Color(0xFF0F172A) else Color(0xFF94A3B8)
+                        color = if (isAuthenticated) Color.White else Color(0xFF64748B)
                     )
                 }
                 
@@ -234,37 +263,43 @@ fun TradingDialog(
                     OutlinedTextField(
                         value = customPrice,
                         onValueChange = { customPrice = it },
-                        label = { Text("Custom Price") },
+                        label = { Text("Custom Price", color = Color(0xFF94A3B8)) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        prefix = { Text("₹") },
+                        prefix = { Text("₹", color = Color.White) },
                         isError = priceError.isNotEmpty(),
                         supportingText = if (priceError.isNotEmpty()) {
-                            { Text(priceError, color = Color(0xFFDC2626)) }
+                            { Text(priceError, color = Color(0xFFEF4444)) }
                         } else null,
                         enabled = isAuthenticated,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = Color(0xFF6366F1),
-                            unfocusedBorderColor = Color(0xFFE2E8F0)
+                            unfocusedBorderColor = Color(0xFF475569),
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            cursorColor = Color.White,
+                            disabledBorderColor = Color(0xFF334155),
+                            disabledTextColor = Color(0xFF64748B)
                         )
                     )
                 }
                 
                 Spacer(modifier = Modifier.height(20.dp))
                 
-                // Total Cost Card
+                // Total Cost Card with consistent styling
                 if (isValidQuantity && isValidPrice) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = Color(0xFFF8FAFC)
-                        )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                color = Color(0xFF0F172A).copy(alpha = 0.6f),
+                                shape = RoundedCornerShape(16.dp)
+                            )
+                            .padding(16.dp)
                     ) {
                         Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp)
+                            modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -273,13 +308,13 @@ fun TradingDialog(
                                 Text(
                                     text = "Total ${if (isBuying) "Cost" else "Value"}:",
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = Color(0xFF64748B)
+                                    color = Color(0xFF94A3B8)
                                 )
                                 Text(
                                     text = "₹${String.format("%.2f", totalCost)}",
                                     style = MaterialTheme.typography.titleLarge,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF0F172A)
+                                    color = Color.White
                                 )
                             }
                             
@@ -314,19 +349,34 @@ fun TradingDialog(
                 
                 Spacer(modifier = Modifier.height(24.dp))
                 
-                // Action Buttons
+                // Action Buttons with consistent styling
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    OutlinedButton(
+                    // Cancel Button
+                    Button(
                         onClick = onDismiss,
-                        modifier = Modifier.weight(1f),
-                        enabled = !isLoading
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp),
+                        enabled = !isLoading,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF475569),
+                            contentColor = Color.White,
+                            disabledContainerColor = Color(0xFF334155),
+                            disabledContentColor = Color(0xFF64748B)
+                        ),
+                        shape = RoundedCornerShape(28.dp)
                     ) {
-                        Text("Cancel")
+                        Text(
+                            "Cancel",
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleMedium
+                        )
                     }
                     
+                    // Confirm Button
                     Button(
                         onClick = {
                             val qty = quantity.toIntOrNull() ?: 0
@@ -335,39 +385,31 @@ fun TradingDialog(
                                 onConfirm(qty, price)
                             }
                         },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp),
                         enabled = !isLoading && isFormValid && (affordabilityResult?.canAfford != false || !isBuying),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.Transparent
-                        )
+                            containerColor = if (isBuying) Color(0xFF10B981) else Color(0xFFEF4444),
+                            contentColor = Color.White,
+                            disabledContainerColor = Color(0xFF334155),
+                            disabledContentColor = Color(0xFF64748B)
+                        ),
+                        shape = RoundedCornerShape(28.dp)
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(
-                                    brush = Brush.linearGradient(
-                                        colors = if (isBuying) {
-                                            listOf(Color(0xFF10B981), Color(0xFF059669))
-                                        } else {
-                                            listOf(Color(0xFFEF4444), Color(0xFFDC2626))
-                                        }
-                                    )
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (isLoading) {
-                                CircularProgressIndicator(
-                                    color = Color.White,
-                                    modifier = Modifier.size(20.dp),
-                                    strokeWidth = 2.dp
-                                )
-                            } else {
-                                Text(
-                                    text = if (isBuying) "Buy Now" else "Sell Now",
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                color = Color.White,
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text(
+                                text = if (isBuying) "Buy" else "Sell",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleMedium
+                            )
                         }
                     }
                 }

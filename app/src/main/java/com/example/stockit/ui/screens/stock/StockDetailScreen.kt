@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.foundation.BorderStroke  // Add this import
 import kotlin.math.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -100,7 +101,7 @@ fun StockDetailScreen(
         }
     }
     
-    // Background retry mechanism - retry every 2 seconds for missing data
+    // Background retry mechanism - Updated for new holdings strategy
     LaunchedEffect(uiState.isAuthenticated) {
         while (true) {
             delay(2000) // Wait 2 seconds
@@ -115,26 +116,16 @@ fun StockDetailScreen(
                 viewModel.retryChartDataInBackground(stockSymbol, selectedTimeFrame)
             }
             
-            // Retry user holdings if authenticated but holdings missing and not loading
+            // Retry user holdings based on new strategy:
+            // - Only retry twice initially when screen opens
+            // - Continuously retry after successful trades
             if (uiState.isAuthenticated && uiState.userHolding == null && !uiState.isLoadingHolding) {
                 viewModel.retryUserHoldingInBackground(stockSymbol)
             }
         }
     }
     
-    // Handle error messages
-    LaunchedEffect(uiState.error) {
-        uiState.error?.let { error ->
-            snackbarHostState.showSnackbar(
-                message = error,
-                duration = SnackbarDuration.Long
-            )
-            delay(3000)
-            viewModel.clearError()
-        }
-    }
-    
-    // Handle success messages
+    // Handle success messages and reload holdings after trades
     LaunchedEffect(uiState.successMessage) {
         uiState.successMessage?.let { message ->
             snackbarHostState.showSnackbar(
@@ -142,14 +133,18 @@ fun StockDetailScreen(
                 duration = SnackbarDuration.Short
             )
             
-            // Reload holdings after successful trade
-            if (message.contains("bought") || message.contains("sold")) {
-                delay(1000) // Small delay to ensure backend is updated
-                viewModel.loadUserHolding(stockSymbol)
-            }
+            // No need to manually reload holdings here as it's handled in the ViewModel
+            // after successful trades
             
             delay(2000)
             viewModel.clearSuccessMessage()
+        }
+    }
+
+    // Add cleanup when user navigates away
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel.stopContinuousHoldingsRetry()
         }
     }
 
@@ -761,10 +756,12 @@ fun AccessibleChartCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .height(68.dp) // Increased height from 60dp to 68dp
                     .semantics {
                         contentDescription = "Time frame selector. Currently selected: $selectedTimeFrame"
                     },
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 timeFrames.forEach { timeFrame ->
                     val isSelected = timeFrame == selectedTimeFrame
@@ -773,29 +770,45 @@ fun AccessibleChartCard(
                         onClick = { onTimeFrameSelected(timeFrame) },
                         modifier = Modifier
                             .weight(1f)
-                            .height(48.dp) // Minimum touch target
+                            .fillMaxHeight()
                             .semantics {
                                 contentDescription = "Select $timeFrame timeframe"
                                 if (isSelected) {
                                     stateDescription = "Selected"
                                 }
+                                role = Role.Button
                             },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (isSelected) {
-                                Color(0xFF3B82F6)
+                                Color(0xFF0F172A).copy(alpha = 0.9f)
                             } else {
-                                Color(0xFF334155)
+                                Color(0xFF0F172A).copy(alpha = 0.6f)
                             },
                             contentColor = Color.White
                         ),
-                        shape = RoundedCornerShape(24.dp)
-                    ) {
-                        Text(
-                            text = timeFrame,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = Color.White
+                        shape = RoundedCornerShape(30.dp),
+                        contentPadding = PaddingValues(0.dp), // Remove all padding
+                        border = BorderStroke(
+                            width = 1.dp,
+                            color = Color.White.copy(alpha = if (isSelected) 0.3f else 0.15f)
                         )
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center // Force center alignment
+                        ) {
+                            Text(
+                                text = timeFrame,
+                                color = Color.White,
+                                fontSize = 12.sp, // Reduced from 14sp to 12sp
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.5.sp,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.semantics {
+                                    contentDescription = "$timeFrame timeframe button"
+                            }
+                            )
+                        }
                     }
                 }
             }
@@ -977,12 +990,12 @@ fun AccessibleStockChart(
             // End point
             drawCircle(
                 color = chartColor,
-                radius = 4.dp.toPx(),
+                radius = 4.dp.toPx(), // Fixed: added .toPx()
                 center = animatedPoints.last()
             )
             drawCircle(
                 color = Color.White,
-                radius = 2.dp.toPx(),
+                radius = 2.dp.toPx(), // Fixed: added .toPx()
                 center = animatedPoints.last()
             )
         }
@@ -1331,7 +1344,8 @@ fun AccessibleHoldingsCard(
     isLoading: Boolean,
     modifier: Modifier = Modifier
 ) {
-    if (!isLoading && userHolding == null) return
+    // Don't show anything if loading or if no holding data
+    if (isLoading || userHolding == null) return
     
     Box(
         modifier = modifier
@@ -1342,13 +1356,7 @@ fun AccessibleHoldingsCard(
             )
             .clip(RoundedCornerShape(32.dp))
             .semantics {
-                contentDescription = if (isLoading) {
-                    "Loading your holdings information"
-                } else {
-                    userHolding?.let { holding ->
-                        "Your holdings: ${holding.quantity} shares at average price ₹${String.format("%.2f", holding.averagePrice)}"
-                    } ?: "No holdings information"
-                }
+                contentDescription = "Your holdings: ${userHolding.quantity} shares at average price ₹${String.format("%.2f", userHolding.averagePrice)}"
             }
     ) {
         // Subtle glass morphism background
@@ -1385,95 +1393,91 @@ fun AccessibleHoldingsCard(
             
             Spacer(modifier = Modifier.height(20.dp))
             
-            if (isLoading) {
-                AccessibleStatisticsShimmer()
-            } else if (userHolding != null) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+            Column(
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        AccessibleStatisticItem(
-                            label = "Quantity",
-                            value = "${userHolding.quantity} shares",
-                            modifier = Modifier.weight(1f)
-                        )
-                        AccessibleStatisticItem(
-                            label = "Avg. Price",
-                            value = "₹${String.format("%.2f", userHolding.averagePrice)}",
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
+                    AccessibleStatisticItem(
+                        label = "Quantity",
+                        value = "${userHolding.quantity} shares",
+                        modifier = Modifier.weight(1f)
+                    )
+                    AccessibleStatisticItem(
+                        label = "Avg. Price",
+                        value = "₹${String.format("%.2f", userHolding.averagePrice)}",
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    AccessibleStatisticItem(
+                        label = "Invested",
+                        value = "₹${String.format("%.2f", userHolding.investedAmount)}",
+                        modifier = Modifier.weight(1f)
+                    )
+                    AccessibleStatisticItem(
+                        label = "Current Value",
+                        value = "₹${String.format("%.2f", userHolding.currentValue)}",
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    val isProfit = userHolding.profitLoss >= 0
+                    val profitLossColor = if (isProfit) Color(0xFF10B981) else Color(0xFFEF4444)
                     
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        AccessibleStatisticItem(
-                            label = "Invested",
-                            value = "₹${String.format("%.2f", userHolding.investedAmount)}",
-                            modifier = Modifier.weight(1f)
-                        )
-                        AccessibleStatisticItem(
-                            label = "Current Value",
-                            value = "₹${String.format("%.2f", userHolding.currentValue)}",
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        val isProfit = userHolding.profitLoss >= 0
-                        val profitLossColor = if (isProfit) Color(0xFF10B981) else Color(0xFFEF4444)
-                        
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .semantics(mergeDescendants = true) {
-                                    contentDescription = "Profit/Loss: ${if (isProfit) "profit" else "loss"} of ₹${String.format("%.2f", kotlin.math.abs(userHolding.profitLoss))}"
-                                }
-                        ) {
-                            Text(
-                                text = "P&L",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFF94A3B8),
-                                fontWeight = FontWeight.Medium,
-                                fontSize = 12.sp
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = if (isProfit) Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
-                                    contentDescription = null,
-                                    tint = profitLossColor,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "${if (isProfit) "+" else ""}₹${String.format("%.2f", userHolding.profitLoss)}",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = profitLossColor,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp
-                                )
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .semantics(mergeDescendants = true) {
+                                contentDescription = "Profit/Loss: ${if (isProfit) "profit" else "loss"} of ₹${String.format("%.2f", kotlin.math.abs(userHolding.profitLoss))}"
                             }
-                        }
-                        
-                        if (userHolding.firstBuyDate != null) {
-                            AccessibleStatisticItem(
-                                label = "First Buy",
-                                value = userHolding.firstBuyDate.take(10), // Show only date part
-                                modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            text = "P&L",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFF94A3B8),
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 12.sp
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = if (isProfit) Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
+                                contentDescription = null,
+                                tint = profitLossColor,
+                                modifier = Modifier.size(16.dp)
                             )
-                        } else {
-                            Spacer(modifier = Modifier.weight(1f))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "${if (isProfit) "+" else ""}₹${String.format("%.2f", userHolding.profitLoss)}",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = profitLossColor,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp
+                            )
                         }
+                    }
+                    
+                    if (userHolding.firstBuyDate != null) {
+                        AccessibleStatisticItem(
+                            label = "First Buy",
+                            value = userHolding.firstBuyDate.take(10), // Show only date part
+                            modifier = Modifier.weight(1f)
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.weight(1f))
                     }
                 }
             }

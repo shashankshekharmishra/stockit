@@ -38,6 +38,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.text.style.TextOverflow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -532,7 +533,7 @@ fun EnhancedStockListItem(
                     .padding(20.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Enhanced Stock Icon with rank if available
+                // Enhanced Stock Icon with only rank
                 Box(
                     modifier = Modifier
                         .size(56.dp)
@@ -542,30 +543,28 @@ fun EnhancedStockListItem(
                         ),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
+                    // Show only rank if available
+                    stock.rank?.let { rank ->
                         Text(
-                            text = getStockIcon(stock.symbol),
+                            text = "#$rank",
+                            color = getStockIconColor(stock.symbol),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    } ?: run {
+                        // Fallback to first letter if no rank
+                        Text(
+                            text = stock.symbol.take(1).uppercase(),
                             color = getStockIconColor(stock.symbol),
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold
                         )
-                        // Show rank if available
-                        stock.rank?.let { rank ->
-                            Text(
-                                text = "#$rank",
-                                color = getStockIconColor(stock.symbol).copy(alpha = 0.8f),
-                                fontSize = 8.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
                     }
                 }
 
                 Spacer(modifier = Modifier.width(16.dp))
 
-                // Stock Info with additional details
+                // Stock Info with text overflow handling
                 Column(
                     modifier = Modifier.weight(1f)
                 ) {
@@ -574,14 +573,17 @@ fun EnhancedStockListItem(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = Color.White,
-                        letterSpacing = 0.5.sp
+                        letterSpacing = 0.5.sp,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
                     Text(
                         text = stock.name ?: stock.symbol,
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color(0xFF94A3B8),
                         fontWeight = FontWeight.Medium,
-                        maxLines = 1
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
                     
                     // Show volume if available
@@ -590,7 +592,9 @@ fun EnhancedStockListItem(
                             text = "Vol: ${formatVolume(volume)}",
                             style = MaterialTheme.typography.bodySmall,
                             color = Color(0xFF64748B),
-                            fontSize = 11.sp
+                            fontSize = 11.sp,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -604,7 +608,9 @@ fun EnhancedStockListItem(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = Color.White,
-                        letterSpacing = 0.5.sp
+                        letterSpacing = 0.5.sp,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
 
                     val change = stock.change ?: 0.0
@@ -633,7 +639,8 @@ fun EnhancedStockListItem(
                                 text = "${if (isPositive) "+" else ""}${String.format("%.2f", changePercent)}%",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = changeColor,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1
                             )
                         }
                     }
@@ -645,7 +652,9 @@ fun EnhancedStockListItem(
                             text = "H: ₹${formatPrice(stock.high)} L: ₹${formatPrice(stock.low)}",
                             style = MaterialTheme.typography.bodySmall,
                             color = Color(0xFF64748B),
-                            fontSize = 10.sp
+                            fontSize = 10.sp,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                         )
                     }
                 }

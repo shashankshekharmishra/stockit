@@ -40,7 +40,9 @@ data class StockDetailUiState(
     val isInWatchlist: Boolean = false,
     val watchlistLoading: Boolean = false,
     val userHolding: UserHolding? = null,
-    val isLoadingHolding: Boolean = false
+    val isLoadingHolding: Boolean = false,
+    val holdingsRequestCount: Int = 0, // Add this to track request count
+    val shouldContinuouslyRetryHoldings: Boolean = false // Add this flag
 )
 
 data class StockData(
@@ -137,7 +139,7 @@ class StockDetailViewModel @Inject constructor(
                 
                 _uiState.value = _uiState.value.copy(isLoading = false)
                 
-                // Load user holding if authenticated
+                // Load user holding if authenticated - Initial load attempt 1
                 if (_uiState.value.isAuthenticated) {
                     loadUserHolding(symbol)
                 }
@@ -151,7 +153,7 @@ class StockDetailViewModel @Inject constructor(
         }
     }
     
-    // Background retry methods
+    // Background retry mechanisms - Updated to respect holdings retry strategy
     fun retryStockDataInBackground(symbol: String) {
         if (!_uiState.value.isLoading) {
             viewModelScope.launch {
@@ -225,53 +227,21 @@ class StockDetailViewModel @Inject constructor(
         }
     }
     
+    // Updated: Only retry holdings based on new strategy
     fun retryUserHoldingInBackground(symbol: String) {
-        if (!_uiState.value.isLoadingHolding && _uiState.value.isAuthenticated) {
-            viewModelScope.launch {
-                _uiState.value = _uiState.value.copy(isLoadingHolding = true)
-                
-                try {
-                    val token = authManager.getAccessToken()
-                    if (token.isNotEmpty()) {
-                        val response = ApiConfig.stockApiService.getUserStockHolding(
-                            token = "Bearer $token",
-                            symbol = symbol
-                        )
-                        
-                        if (response.success && response.owns == true) {
-                            val holding = UserHolding(
-                                symbol = response.symbol ?: symbol,
-                                owns = response.owns ?: false,
-                                quantity = response.quantity ?: 0,
-                                averagePrice = response.averagePrice ?: 0.0,
-                                investedAmount = response.investedAmount ?: 0.0,
-                                currentPrice = response.currentPrice ?: 0.0,
-                                currentValue = response.currentValue ?: 0.0,
-                                profitLoss = response.profitLoss ?: 0.0,
-                                firstBuyDate = response.firstBuyDate
-                            )
-                            
-                            _uiState.value = _uiState.value.copy(
-                                userHolding = holding,
-                                isLoadingHolding = false
-                            )
-                            
-                            Log.i("StockDetailViewModel", "Background user holding retry successful for $symbol")
-                        } else {
-                            _uiState.value = _uiState.value.copy(
-                                userHolding = null,
-                                isLoadingHolding = false
-                            )
-                        }
-                    } else {
-                        _uiState.value = _uiState.value.copy(isLoadingHolding = false)
-                    }
-                    
-                } catch (e: Exception) {
-                    Log.w("StockDetailViewModel", "Background user holding retry failed for $symbol", e)
-                    _uiState.value = _uiState.value.copy(isLoadingHolding = false)
-                }
-            }
+        val currentState = _uiState.value
+        
+        // Only retry if:
+        // 1. Not currently loading holdings
+        // 2. User is authenticated
+        // 3. Either:
+        //    - Haven't made 2 initial requests yet (holdingsRequestCount < 2)
+        //    - OR continuously retry flag is enabled (after successful trade)
+        if (!currentState.isLoadingHolding && 
+            currentState.isAuthenticated && 
+            (currentState.holdingsRequestCount < 2 || currentState.shouldContinuouslyRetryHoldings)) {
+            
+            loadUserHoldingInternal(symbol, isBackgroundRetry = true)
         }
     }
     
@@ -438,8 +408,12 @@ class StockDetailViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(
                         isTradingLoading = false,
                         error = null,
-                        successMessage = "Successfully bought $quantity shares of $symbol"
+                        successMessage = "Successfully bought $quantity shares of $symbol",
+                        shouldContinuouslyRetryHoldings = true // Enable continuous retry after successful buy
                     )
+                    
+                    // Immediately load holdings after successful trade
+                    loadUserHoldingInternal(symbol, isPostTrade = true)
                 } else {
                     _uiState.value = _uiState.value.copy(
                         isTradingLoading = false,
@@ -478,8 +452,12 @@ class StockDetailViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(
                         isTradingLoading = false,
                         error = null,
-                        successMessage = "Successfully sold $quantity shares of $symbol"
+                        successMessage = "Successfully sold $quantity shares of $symbol",
+                        shouldContinuouslyRetryHoldings = true // Enable continuous retry after successful sell
                     )
+                    
+                    // Immediately load holdings after successful trade
+                    loadUserHoldingInternal(symbol, isPostTrade = true)
                 } else {
                     _uiState.value = _uiState.value.copy(
                         isTradingLoading = false,
@@ -745,7 +723,18 @@ class StockDetailViewModel @Inject constructor(
         }
     }
 
+    // Updated loadUserHolding to use internal method
     fun loadUserHolding(symbol: String) {
+        loadUserHoldingInternal(symbol, isInitialLoad = true)
+    }
+    
+    // Internal method that handles all holdings loading logic
+    private fun loadUserHoldingInternal(
+        symbol: String, 
+        isInitialLoad: Boolean = false,
+        isBackgroundRetry: Boolean = false,
+        isPostTrade: Boolean = false
+    ) {
         viewModelScope.launch {
             if (!validateAuthentication()) return@launch
             
@@ -775,24 +764,59 @@ class StockDetailViewModel @Inject constructor(
                         firstBuyDate = response.firstBuyDate
                     )
                     
+                    val newRequestCount = if (isInitialLoad || isBackgroundRetry) {
+                        _uiState.value.holdingsRequestCount + 1
+                    } else {
+                        _uiState.value.holdingsRequestCount
+                    }
+                    
                     _uiState.value = _uiState.value.copy(
                         userHolding = holding,
-                        isLoadingHolding = false
+                        isLoadingHolding = false,
+                        holdingsRequestCount = newRequestCount
                     )
+                    
+                    val logType = when {
+                        isInitialLoad -> "Initial"
+                        isBackgroundRetry -> "Background retry"
+                        isPostTrade -> "Post-trade"
+                        else -> "Manual"
+                    }
+                    Log.i("StockDetailViewModel", "$logType holdings load successful for $symbol (Request #$newRequestCount)")
+                    
                 } else {
+                    val newRequestCount = if (isInitialLoad || isBackgroundRetry) {
+                        _uiState.value.holdingsRequestCount + 1
+                    } else {
+                        _uiState.value.holdingsRequestCount
+                    }
+                    
                     _uiState.value = _uiState.value.copy(
                         userHolding = null,
-                        isLoadingHolding = false
+                        isLoadingHolding = false,
+                        holdingsRequestCount = newRequestCount
                     )
                 }
                 
             } catch (e: Exception) {
+                val newRequestCount = if (isInitialLoad || isBackgroundRetry) {
+                    _uiState.value.holdingsRequestCount + 1
+                } else {
+                    _uiState.value.holdingsRequestCount
+                }
+                
                 println("⚠️ Error loading user holding: ${e.message}")
                 _uiState.value = _uiState.value.copy(
                     userHolding = null,
-                    isLoadingHolding = false
+                    isLoadingHolding = false,
+                    holdingsRequestCount = newRequestCount
                 )
             }
         }
+    }
+    
+    // Function to stop continuous holdings retry (call when user navigates away)
+    fun stopContinuousHoldingsRetry() {
+        _uiState.value = _uiState.value.copy(shouldContinuouslyRetryHoldings = false)
     }
 }
