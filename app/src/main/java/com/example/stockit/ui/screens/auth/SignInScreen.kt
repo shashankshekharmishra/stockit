@@ -149,7 +149,8 @@ fun SignInScreen(
 
             // Enhanced Form Fields
             Column(
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth()
             ) {
                 // Enhanced Email Field
                 OutlinedTextField(
@@ -171,7 +172,7 @@ fun SignInScreen(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp), // Fixed height
+                        .defaultMinSize(minHeight = 56.dp), // Changed from .height(56.dp).wrapContentHeight()
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Email,
                         imeAction = ImeAction.Next
@@ -216,7 +217,7 @@ fun SignInScreen(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp), // Fixed height
+                        .defaultMinSize(minHeight = 56.dp), // Changed from .height(56.dp).wrapContentHeight()
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Password,
                         imeAction = ImeAction.Done
