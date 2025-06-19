@@ -171,36 +171,9 @@ fun SplashScreen(
             // Logo container with glass morphism effect similar to watchlist cards
             Box(
                 modifier = Modifier
-                    .size(120.dp)
-                    .background(
-                        color = Color(0xFF1E293B).copy(alpha = 0.95f),
-                        shape = RoundedCornerShape(32.dp)
-                    )
-                    .clip(RoundedCornerShape(32.dp))
-                    .shadow(
-                        elevation = 20.dp,
-                        shape = RoundedCornerShape(32.dp),
-                        ambientColor = Color(0xFF6366F1).copy(alpha = 0.3f),
-                        spotColor = Color(0xFF8B5CF6).copy(alpha = 0.3f)
-                    ),
+                    .size(120.dp),
                 contentAlignment = Alignment.Center
             ) {
-                // Glass morphism background
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            brush = Brush.linearGradient(
-                                colors = listOf(
-                                    Color.White.copy(alpha = 0.1f),
-                                    Color.White.copy(alpha = 0.02f)
-                                ),
-                                start = Offset(0f, 0f),
-                                end = Offset(1000f, 1000f)
-                            )
-                        )
-                )
-                
                 // Brand logo from drawable
                 Image(
                     painter = painterResource(id = R.drawable.icon),
