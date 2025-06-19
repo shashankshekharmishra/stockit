@@ -287,7 +287,7 @@ fun HomeHeader(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Login Button (left side)
+            // Login Button (left side) - removed shadow
             IconButton(
                 onClick = onNavigateToOnboarding,
                 modifier = Modifier
@@ -301,7 +301,6 @@ fun HomeHeader(
                         ),
                         shape = CircleShape
                     )
-                    .shadow(6.dp, CircleShape)
             ) {
                 Icon(
                     imageVector = Icons.Default.Login,
@@ -330,7 +329,7 @@ fun HomeHeader(
                     )
             )
             
-            // Refresh Button (right side) - Improved design
+            // Refresh Button (right side) - removed shadow
             IconButton(
                 onClick = onRefresh,
                 modifier = Modifier
@@ -344,7 +343,6 @@ fun HomeHeader(
                         ),
                         shape = CircleShape
                     )
-                    .shadow(6.dp, CircleShape)
             ) {
                 if (isRefreshing) {
                     CircularProgressIndicator(

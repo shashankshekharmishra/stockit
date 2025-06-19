@@ -244,8 +244,7 @@ fun WatchlistHeader(
                             )
                         ),
                         shape = CircleShape
-                    )
-                    .shadow(6.dp, CircleShape),
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -256,28 +255,15 @@ fun WatchlistHeader(
                 )
             }
             
-            // Title and Count (center) - consistent styling
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "My Watchlist",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Color.White,
-                    letterSpacing = 1.5.sp,
-                    fontSize = 20.sp // Slightly smaller than home to fit with subtitle
-                )
-                if (isAuthenticated) {
-                    Text(
-                        text = "$stockCount ${if (stockCount == 1) "stock" else "stocks"} tracked",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFFE2E8F0),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
+            // Title (center) - consistent styling
+            Text(
+                text = "My Watchlist",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.ExtraBold,
+                color = Color.White,
+                letterSpacing = 1.5.sp,
+                fontSize = 20.sp
+            )
             
             // Refresh Button (right side) - consistent with home
             if (isAuthenticated) {
@@ -294,7 +280,6 @@ fun WatchlistHeader(
                             ),
                             shape = CircleShape
                         )
-                        .shadow(6.dp, CircleShape)
                 ) {
                     if (isRefreshing) {
                         CircularProgressIndicator(

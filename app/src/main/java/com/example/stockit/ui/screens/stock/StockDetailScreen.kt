@@ -409,7 +409,7 @@ fun AccessibleHeader(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Back Button (left side) - consistent with watchlist icon styling
+            // Back Button (left side) - removed shadow
             Box(
                 modifier = Modifier
                     .size(48.dp)
@@ -422,7 +422,6 @@ fun AccessibleHeader(
                         ),
                         shape = CircleShape
                     )
-                    .shadow(6.dp, CircleShape)
                     .clickable { onBackClick() }
                     .semantics {
                         contentDescription = "Go back to previous screen"
@@ -472,7 +471,7 @@ fun AccessibleHeader(
                 }
             }
             
-            // Watchlist button (right side) - only show if authenticated
+            // Watchlist button (right side) - removed shadow
             if (isAuthenticated) {
                 IconButton(
                     onClick = onWatchlistClick,
@@ -496,7 +495,6 @@ fun AccessibleHeader(
                             },
                             shape = CircleShape
                         )
-                        .shadow(6.dp, CircleShape)
                         .semantics {
                             contentDescription = if (isInWatchlist) {
                                 "Remove $stockSymbol from watchlist"

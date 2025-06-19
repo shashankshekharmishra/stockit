@@ -254,8 +254,7 @@ fun ProfileHeader(
                             )
                         ),
                         shape = CircleShape
-                    )
-                    .shadow(6.dp, CircleShape),
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -266,33 +265,15 @@ fun ProfileHeader(
                 )
             }
             
-            // Title and User Info (center) - consistent styling
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = if (isAuthenticated) "My Profile" else "Profile",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Color.White,
-                    letterSpacing = 1.5.sp,
-                    fontSize = 20.sp // Match WatchlistScreen font size
-                )
-                
-                // Create local variable to enable smart cast
-                val profile = userProfile
-                if (isAuthenticated && profile != null) {
-                    Text(
-                        text = profile.fullName,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFFE2E8F0),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
+            // Title (center) - consistent styling
+            Text(
+                text = if (isAuthenticated) "My Profile" else "Profile",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.ExtraBold,
+                color = Color.White,
+                letterSpacing = 1.5.sp,
+                fontSize = 20.sp // Match WatchlistScreen font size
+            )
             
             // Action Buttons (right side) - consistent with watchlist
             if (isAuthenticated) {
@@ -310,7 +291,6 @@ fun ProfileHeader(
                                 ),
                                 shape = CircleShape
                             )
-                            .shadow(6.dp, CircleShape)
                     ) {
                         if (isRefreshing) {
                             CircularProgressIndicator(
@@ -343,7 +323,6 @@ fun ProfileHeader(
                                 ),
                                 shape = CircleShape
                             )
-                            .shadow(6.dp, CircleShape)
                     ) {
                         Icon(
                             Icons.AutoMirrored.Filled.ExitToApp,
