@@ -105,9 +105,20 @@ This application follows **MVVM + Clean Architecture** principles for maintainab
 
 ## 📱 Screenshots
 
-| Home Screen | Stock Details | Portfolio | Watchlist |
-|-------------|---------------|-----------|-----------|
-| Coming Soon | Coming Soon   | Coming Soon | Coming Soon |
+### 🎯 Onboarding & Authentication
+| Onboarding 1 | Onboarding 2 | Sign In | Sign Up |
+|--------------|--------------|---------|---------|
+| ![Onboarding 1](./screenshots/onboarding%201.jpg) | ![Onboarding 2](./screenshots/onboarding%202.jpg) | ![Sign In](./screenshots/sign%20in.jpg) | ![Sign Up](./screenshots/sign%20up.jpg) |
+
+### 📊 Main Application
+| Home Page | Stock Details 1 | Stock Details 2 | Buy Stocks |
+|-----------|-----------------|-----------------|------------|
+| ![Home Page](./screenshots/home%20page.jpg) | ![Stock Details 1](./screenshots/stock%20details%201.jpg) | ![Stock Details 2](./screenshots/stock%20details%202.jpg) | ![Buy Stocks](./screenshots/buy%20stocks.jpg) |
+
+### 👤 Profile & Success
+| Profile Page 0 | Profile Page | Success Page |
+|----------------|--------------|--------------|
+| ![Profile Page 0](./screenshots/profile%20page%200.jpg) | ![Profile Page](./screenshots/profile%20page.jpg) | ![Success Page](./screenshots/success%20page.jpg) |
 
 ## 🎨 Design System
 
